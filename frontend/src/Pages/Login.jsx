@@ -7,6 +7,9 @@ import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
+import { useUser } from "../Context/userContext";
+
+
 
 const api = axios.create({
   baseURL: "http://localhost:3000/api",
@@ -28,7 +31,7 @@ const schema = yup.object({
 
 export default function Login() {
   const navigate = useNavigate();
-
+  const { setUser } = useUser();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -48,12 +51,11 @@ const onSubmit = async (data) => {
       email: data.email,
       password: data.password,
     });
-
-    toast.success("Login successfully!");
-
+    console.log(response);
+    setUser(response.data.user);
     reset();
 
-    navigate("/login");
+    navigate("/home");
   } catch (error) {
     toast.error("Login failed");
   } finally {

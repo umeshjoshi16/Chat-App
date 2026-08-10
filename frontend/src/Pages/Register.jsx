@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -16,6 +16,16 @@ const api = axios.create({
 const schema = yup.object({
   fullName: yup.string().required("Full Name is required").min(3, "Full Name must be at least 3 characters").max(50, "Full Name cannot exceed 50 characters"),
 
+    username: yup
+    .string()
+    .required("Username is required")
+    .min(3, "Username must be at least 3 characters")
+    .max(20, "Username cannot exceed 20 characters")
+    .matches(
+      /^[a-zA-Z0-9_]+$/,
+      "Only letters, numbers and underscore are allowed"
+    ),
+
   email: yup.string().required("Email is required").email("Enter a valid email address"),
 
   password: yup.string().required("Password is required").min(8, "Password must be at least 8 characters").matches(/[A-Z]/, "Must contain at least one uppercase letter").matches(/[a-z]/, "Must contain at least one lowercase letter").matches(/[0-9]/, "Must contain at least one number").matches(/[!@#$%^&*(),.?":{}|<>]/,"Must contain at least one special character"
@@ -29,21 +39,73 @@ export default function Register() {
 const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
 
+  const [usernameStatus, setUsernameStatus] = useState("");
+const [checkingUsername, setCheckingUsername] = useState(false);
+
+
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
+     watch,
   } = useForm({
     resolver: yupResolver(schema),
     mode: "onTouched",
   });
+  const username = watch("username");
+
+  useEffect(() => {
+  if (!username) {
+    setUsernameStatus("");
+    return;
+  }
+
+  const normalizedUsername = username.trim().toLowerCase();
+
+  if (normalizedUsername.length < 3) {
+    setUsernameStatus("");
+    return;
+  }
+
+  const timer = setTimeout(async () => {
+    try {
+      setCheckingUsername(true);
+
+      const { data } = await api.get("/auth/check-username", {
+        params: {
+          username: normalizedUsername,
+        },
+      });
+
+      setUsernameStatus(data.available ? "available" : "taken");
+    } catch (error) {
+      setUsernameStatus("");
+    } finally {
+      setCheckingUsername(false);
+    }
+  }, 500);
+
+  return () => clearTimeout(timer);
+}, [username]);
+
 const onSubmit = async (data) => {
   const loading = toast.loading("Creating account...");
+  if (checkingUsername) {
+  toast.error("Please wait while we check the username.");
+  return;
+}
+
+ if (usernameStatus !== "available") {
+  toast.error("Please choose a valid available username.");
+  return;
+}
 
   try {
     const response = await api.post("/auth/register", {
       fullName: data.fullName,
+        username: data.username.trim().toLowerCase(),
       email: data.email,
       password: data.password,
     });
@@ -100,6 +162,56 @@ const onSubmit = async (data) => {
               </p>
             )}
           </div>
+
+
+          {/*username */}
+         
+          <div>
+  <label className="block mb-2 font-medium">
+    Username*
+  </label>
+
+  <input
+    type="text"
+    placeholder="umesh"
+    {...register("username")}
+    className={`w-full px-4 py-3 rounded-lg border outline-none transition
+    ${
+      errors.username
+        ? "border-red-500 focus:ring-red-500"
+        : "border-gray-300 focus:ring-indigo-500"
+    }
+    focus:ring`}
+  />
+
+  {errors.username && (
+    <p className="text-red-500 text-sm mt-1">
+      {errors.username.message}
+    </p>
+  )}
+
+  {!errors.username && checkingUsername && (
+    <p className="text-sm text-gray-500 mt-1">
+      Checking username...
+    </p>
+  )}
+
+  {!errors.username &&
+    !checkingUsername &&
+    usernameStatus === "available" && (
+      <p className="text-green-600 text-sm mt-1">
+        ✓ Username is available
+      </p>
+    )}
+
+  {!errors.username &&
+    !checkingUsername &&
+    usernameStatus === "taken" && (
+      <p className="text-red-600 text-sm mt-1">
+        ✗ Username is already taken
+      </p>
+    )}
+</div>
 
           {/* Email */}
           <div>

@@ -46,7 +46,7 @@ const userSchema = new mongoose.Schema(
 gender: {
   type: String,
   enum: ["male", "female", "other"],
-  default: "",
+ default: null,
 },
 
 profileKey: {
@@ -89,6 +89,7 @@ const friendshipSchema = new mongoose.Schema(
       ref: "User",
       default: null,
     },
+    
   },
   {
     timestamps: true,

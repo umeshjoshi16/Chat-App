@@ -4,6 +4,7 @@ import { isAuthenticated } from "../Middleware/authMiddleware.js";
 import { checkUsername, getMe, searchUsers, updateProfile } from "../Controller/userController.js";
 import { getProfileImageUrl, getProfileUploadUrl } from "../Controller/generatePresignedUrl.js";
 import { sendFriendRequest,acceptFriendRequest,cancelFriendRequest,rejectFriendRequest,removeFriend,checkFriendship,} from "../Controller/friendshipController.js";
+import { getNotifications,markNotificationSeen} from "../Controller/notificationController.js";
 
 const router = express.Router();
 
@@ -27,5 +28,10 @@ router.delete("/cancel-request/:friendshipId", isAuthenticated, cancelFriendRequ
 router.delete("/reject-request/:friendshipId", isAuthenticated, rejectFriendRequest);
 router.delete("/remove-friend/:friendshipId", isAuthenticated, removeFriend);
 router.get("/status/:userId", isAuthenticated, checkFriendship);
+
+
+//notification
+router.get("/notifications", isAuthenticated, getNotifications);
+router.put( "/notifications/:notificationId/seen", isAuthenticated, markNotificationSeen);
 
 export default router;

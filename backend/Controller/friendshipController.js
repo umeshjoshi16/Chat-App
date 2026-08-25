@@ -1,4 +1,6 @@
 import { Friend, User } from '../Model/user.js';
+import { Notification } from '../Model/notification.js';
+import { getIO } from '../socket.js';
 
 export const checkFriendship = async (req, res, next) => {
   try {
@@ -109,6 +111,17 @@ export const sendFriendRequest = async (req, res, next) => {
       });
     }
 
+    const currentUser = await User.findById(currentUserId).select(
+      "fullName username profileImageUrl"
+    );
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: "Current user not found.",
+      });
+    }
+
     const existingFriendship = await Friend.findOne({
       $or: [
         {
@@ -144,18 +157,44 @@ export const sendFriendRequest = async (req, res, next) => {
         });
       }
 
-      existingFriendship.requester = currentUserId;
-      existingFriendship.recipient = targetUserId;
-      existingFriendship.status = "pending";
-      existingFriendship.actionBy = null;
+      if (existingFriendship.status === "rejected") {
+        existingFriendship.requester = currentUserId;
+        existingFriendship.recipient = targetUserId;
+        existingFriendship.status = "pending";
+        existingFriendship.actionBy = null;
 
-      await existingFriendship.save();
+        await existingFriendship.save();
 
-      return res.status(200).json({
-        success: true,
-        message: "Friend request sent.",
-        friendship: existingFriendship,
-      });
+        const notification = await Notification.create({
+          recipient: targetUserId,
+          sender: currentUserId,
+          type: "friend_request",
+          message: "You received a new friend request.",
+          data: {
+            friendshipId: existingFriendship._id,
+          },
+        });
+
+        const populatedNotification = await Notification.findById(
+          notification._id
+        ).populate(
+          "sender",
+          "fullName username profileImageUrl"
+        );
+
+        const io = getIO();
+
+        io.to(`user:${targetUserId}`).emit(
+          "friend_request",
+          populatedNotification
+        );
+
+        return res.status(200).json({
+          success: true,
+          message: "Friend request sent.",
+          friendship: existingFriendship,
+        });
+      }
     }
 
     const friendship = await Friend.create({
@@ -163,6 +202,30 @@ export const sendFriendRequest = async (req, res, next) => {
       recipient: targetUserId,
       status: "pending",
     });
+
+    const notification = await Notification.create({
+      recipient: targetUserId,
+      sender: currentUserId,
+      type: "friend_request",
+      message: "You received a new friend request.",
+      data: {
+        friendshipId: friendship._id,
+      },
+    });
+
+    const populatedNotification = await Notification.findById(
+      notification._id
+    ).populate(
+      "sender",
+      "fullName username profileImageUrl"
+    );
+
+    const io = getIO();
+
+    io.to(`user:${targetUserId}`).emit(
+      "friend_request",
+      populatedNotification
+    );
 
     return res.status(201).json({
       success: true,

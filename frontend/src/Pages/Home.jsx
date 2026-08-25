@@ -4,6 +4,7 @@ import {Search,SearchX,Bell,BellOff,MessageSquare,Plus,Send,Menu,X,Phone,Video,I
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../Context/userContext";
+import { io } from "socket.io-client";
 
 const api = axios.create({
   baseURL: "http://localhost:3000/api",
@@ -60,6 +61,9 @@ const [searchResults, setSearchResults] = useState([]);
 const [searchLoading, setSearchLoading] = useState(false);
 const [searchOpen, setSearchOpen] = useState(false);
 
+const [notifications, setNotifications] = useState([]);
+const [unreadCount, setUnreadCount] = useState(0);
+
 
 const navigate=useNavigate();
 
@@ -103,6 +107,55 @@ const handleSendFriendRequest = async (recipientId) => {
     
   }
 };
+
+useEffect(() => {
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await api.get("/auth/notifications");
+      console.log('nptifcation',data);
+
+      setNotifications(data.notifications);
+      
+
+      setUnreadCount(
+        data.notifications.filter((notification) => !notification.seen).length
+      );
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
+    }
+  };
+
+  if (user?._id) {
+    fetchNotifications();
+  }
+}, [user]);
+
+useEffect(() => {
+  if (!user?._id) return;
+
+  const socket = io("http://localhost:3000");
+
+  socket.on("connect", () => {
+    console.log("Socket connected:", socket.id);
+
+    socket.emit("register", user._id);
+  });
+
+  socket.on("friend_request", (notification) => {
+    console.log("New notification:", notification);
+
+    setNotifications((prev) => [
+      notification,
+      ...prev,
+    ]);
+
+    setUnreadCount((prev) => prev + 1);
+  });
+
+  return () => {
+    socket.disconnect();
+  };
+}, [user]);
 
 
 useEffect(() => {
@@ -160,6 +213,29 @@ useEffect(() => {
     { id: 2, name: "Bikash Chaudhary", status: "online", lastMessage: "Project files uploaded." },
     { id: 3, name: "Chakra Bam", status: "away", lastMessage: "Check out this link!" },
   ];
+
+
+  const handleNotificationClick = async (notification) => {
+  try {
+    if (!notification.seen) {
+      await api.put(
+        `/auth/notifications/${notification._id}/seen`
+      );
+
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item._id === notification._id
+            ? { ...item, seen: true }
+            : item
+        )
+      );
+
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    }
+  } catch (error) {
+    console.error("Failed to mark notification as seen:", error);
+  }
+};
 
   const handleSendMessage = (e) => {
     e.preventDefault();
@@ -295,10 +371,18 @@ useEffect(() => {
 
        
         <div className="flex items-center gap-3">
-          <button onClick={toggleNotification} className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-          </button>
+          <button
+  onClick={toggleNotification}
+  className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
+>
+  <Bell className="w-5 h-5" />
+
+  {unreadCount > 0 && (
+    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+      {unreadCount > 99 ? "99+" : unreadCount}
+    </span>
+  )}
+</button>
           <button onClick={()=>{
             navigate('/profile')
           }} className="flex items-center gap-2 pl-2 border-l border-slate-200 cursor-pointer">
@@ -319,26 +403,28 @@ useEffect(() => {
          
       </header>
 
-
-      {notificationOpen && (
+{notificationOpen && (
   <div
     onClick={() => setNotificationOpen(false)}
     className="fixed inset-0 z-50 bg-black/30"
   >
     <div
       onClick={(e) => e.stopPropagation()}
-      className="fixed right-4 top-16 w-70 md:w-85 origin-top-right animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/5"
+      className="fixed right-4 top-16 w-70 md:w-85 h-fit min-h-85 origin-top-right animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/5"
     >
+
       
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-blue-50 p-2">
             <Bell className="h-5 w-5 text-blue-600" />
           </div>
+
           <div>
             <h2 className="text-[15px] font-semibold text-gray-900">
               Notifications
             </h2>
+
             <p className="text-xs text-gray-500">
               Stay updated with your activity
             </p>
@@ -354,25 +440,91 @@ useEffect(() => {
       </div>
 
       
-      <div className="flex flex-col items-center justify-center px-8 py-14">
-        <div className="rounded-full bg-gray-50 p-5 ring-1 ring-gray-100">
-          <BellOff className="h-8 w-8 text-gray-300" strokeWidth={1.5} />
-        </div>
+      <div className="max-h-96 overflow-y-auto">
 
-        <h3 className="mt-5 text-base font-medium text-gray-800">
-          No notifications yet
-        </h3>
+        {notifications.length === 0 ? (
 
-        <p className="mt-1.5 text-center text-[13px] leading-relaxed text-gray-400">
-          You're all caught up! New activity
-          <br />
-          will show up here.
-        </p>
+         
+          <div className="flex flex-col items-center justify-center px-8 py-14">
+            <div className="rounded-full bg-gray-50 p-5 ring-1 ring-gray-100">
+              <BellOff
+                className="h-8 w-8 text-gray-300"
+                strokeWidth={1.5}
+              />
+            </div>
+
+            <h3 className="mt-5 text-base font-medium text-gray-800">
+              No notifications yet
+            </h3>
+
+            <p className="mt-1.5 text-center text-[13px] leading-relaxed text-gray-400">
+              You're all caught up!
+              <br />
+              New activity will show up here.
+            </p>
+          </div>
+
+        ) : (
+
+          
+          notifications.map((notification) => (
+            <button
+              key={notification._id}
+              onClick={() =>
+                handleNotificationClick(notification)
+              }
+              className={`w-full flex items-center gap-3 px-5 py-4 text-left border-b border-gray-100 transition cursor-pointer ${
+                notification.seen
+                  ? "bg-white hover:bg-gray-50"
+                  : "bg-blue-50 hover:bg-blue-100"
+              }`}
+            >
+
+              
+              <SearchAvatar
+                user={notification.sender}
+                getInitials={getInitials}
+              />
+
+              <div className="flex-1 min-w-0">
+
+                <p className="text-sm text-gray-800">
+                  <span className="font-semibold">
+                    {notification.sender?.fullName}
+                  </span>
+
+                  {notification.type === "friend_request" &&
+                    " sent you a friend request."}
+
+                  {notification.type === "friend_accept" &&
+                    " accepted your friend request."}
+
+                  {notification.type === "message" &&
+                    ` ${notification.message}`}
+                </p>
+
+                <p className="text-xs text-gray-400 mt-1">
+                  {new Date(
+                    notification.createdAt
+                  ).toLocaleString()}
+                </p>
+
+              </div>
+
+            
+              {!notification.seen && (
+                <span className="w-2.5 h-2.5 bg-blue-500 rounded-full shrink-0" />
+              )}
+
+            </button>
+          ))
+
+        )}
+
       </div>
     </div>
   </div>
 )}
-
     
 
     

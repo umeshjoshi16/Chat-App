@@ -1,4 +1,4 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand ,GetObjectCommand} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { v4 as uuid } from "uuid";
 import path from "path";
@@ -53,4 +53,55 @@ export const getProfileUploadUrl = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+};
+
+export const getProfileImageUrl = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).select("profileKey");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (!user.profileKey) {
+      return res.status(200).json({
+        success: true,
+        profileImageUrl: null,
+      });
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: user.profileKey,
+    });
+
+    const profileImageUrl = await getSignedUrl(s3, command, {
+      expiresIn: 3600, 
+    });
+
+    return res.status(200).json({
+      success: true,
+      profileImageUrl,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSignedProfileImageUrl = async (profileKey) => {
+  if (!profileKey) return null;
+
+  const command = new GetObjectCommand({
+    Bucket: process.env.S3_BUCKET_NAME,
+    Key: profileKey,
+  });
+
+  return getSignedUrl(s3, command, {
+    expiresIn: 3600,
+  });
 };

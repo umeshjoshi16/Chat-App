@@ -1,7 +1,10 @@
-import User from '../Model/user.js'
+import { User } from '../Model/user.js';
+
+import { getSignedProfileImageUrl } from './generatePresignedUrl.js';
 import { s3 } from "../Config/s3.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
 
 export const getMe = async (req, res, next) => {
   try {
@@ -104,12 +107,21 @@ export const searchUsers = async (req, res, next) => {
         },
       ],
     })
-      .select("_id fullName username profilePicture")
+      .select("_id fullName username profileKey")
       .limit(20);
+
+    const usersWithImages = await Promise.all(
+      users.map(async (user) => ({
+        _id: user._id,
+        fullName: user.fullName,
+        username: user.username,
+        profileImageUrl: await getSignedProfileImageUrl(user.profileKey),
+      }))
+    );
 
     res.status(200).json({
       success: true,
-      users,
+      users: usersWithImages,
     });
   } catch (error) {
     next(error);
@@ -118,47 +130,61 @@ export const searchUsers = async (req, res, next) => {
 
 export const updateProfile = async (req, res, next) => {
   try {
-       const userId = req.user.id;
+    const userId = req.user.id;
+    const { fullName,bio,gender, profileKey,} = req.body;
 
-    const {
-      fullName,
-      bio,
-      gender,
-      profileKey,
-    } = req.body;
+ 
+    const updateData = {};
 
-    const user = await User.findById(userId);
+    if (fullName !== undefined) {
+      updateData.fullName = fullName.trim();
+    }
+
+    if (bio !== undefined) {
+      updateData.bio = bio.trim();
+    }
+
+    if (gender !== undefined) {
+      updateData.gender = gender;
+    }
+
+    if (profileKey !== undefined) {
+      updateData.profileKey = profileKey;
+    }
+
+   
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No fields provided for update",
+      });
+    }
+
+   
+    const user = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: updateData,
+      },
+      {
+        returnDocument: "after",
+        runValidators: true,
+      }
+    );
 
     if (!user) {
-      return res.status(401).json({
+      return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
 
-    if (fullName !== undefined) {
-      user.fullName = fullName.trim();
-    }
-
-    if (bio !== undefined) {
-      user.bio = bio.trim();
-    }
-
-    if (gender !== undefined) {
-      user.gender = gender;
-    }
-
-    if (profileKey !== undefined) {
-      user.profileKey = profileKey;
-    }
-
-    await user.save();
-
+  
     user.password = undefined;
 
     return res.status(200).json({
       success: true,
-      message: "Profile updated successfully.",
+      message: "Profile updated successfully",
       user,
     });
   } catch (error) {

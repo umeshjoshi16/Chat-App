@@ -20,11 +20,12 @@ const Profile = () => {
     gender: activeUser?.gender || "",
     profileKey: activeUser?.profileKey || "",
   });
-
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
 
   
   useEffect(() => {
@@ -110,11 +111,7 @@ const Profile = () => {
 const data = response.data;
 
 
-
-
- 
-
-      toast.success("Profile updated successfully.");
+toast.success("Profile updated successfully.");
 
    
       const updatedUserObject = {
@@ -201,7 +198,10 @@ const data = response.data;
                     <img
                       src={displayAvatar}
                       alt="Profile"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover  cursor-pointer"
+                      onClick={()=>{
+                        setImagePreviewOpen(true);
+                      }}
                     />
                   ) : (
                     formData.fullName?.[0]?.toUpperCase()
@@ -321,6 +321,32 @@ const data = response.data;
 
 
       </div>
+
+
+      {imagePreviewOpen && displayAvatar && (
+  <div
+    onClick={() => setImagePreviewOpen(false)}
+    className="fixed inset-0 z-100 flex items-center justify-center bg-black/70  p-4"
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="relative max-w-2xl max-h-[85vh]"
+    >
+      <img
+        src={displayAvatar}
+        alt="Profile"
+        className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+      />
+
+      <button
+        onClick={() => setImagePreviewOpen(false)}
+        className="absolute -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white text-gray-400  shadow-lg hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+      >
+        <X size={18} strokeWidth={3}/>
+      </button>
+    </div>
+  </div>
+)}
 
       {isLoggingOut && (
   <div

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import bcrypt from "bcrypt";
+
 
 const userSchema = new mongoose.Schema(
   {
@@ -64,6 +64,39 @@ profileKey: {
   }
 );
 
-const User = mongoose.model("User", userSchema);
+const friendshipSchema = new mongoose.Schema(
+  {
+    requester: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
 
-export default User;
+    recipient: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["pending", "accepted", "rejected", "blocked"],
+      default: "pending",
+    },
+
+    actionBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+const User = mongoose.model("User", userSchema);
+const Friend = mongoose.model("Friend", friendshipSchema);
+
+
+export  {User,Friend};

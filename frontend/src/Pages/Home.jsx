@@ -1,8 +1,51 @@
 import React, { useState ,useEffect} from "react";
 import axios from "axios";
-import {Search,SearchX,Bell,BellOff,User,MessageSquare,Plus,Send,Menu,X,Phone,Video,Info,} from "lucide-react";
+import {Search,SearchX,Bell,BellOff,MessageSquare,Plus,Send,Menu,X,Phone,Video,Info,} from "lucide-react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../Context/userContext";
+
+const api = axios.create({
+  baseURL: "http://localhost:3000/api",
+  withCredentials: true,
+});
+
+const SearchAvatar = ({ user, getInitials }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+ useEffect(() => {
+    setImageLoaded(false);
+  }, [user?.profileImageUrl]);
+
+  if (!user?.profileImageUrl) {
+    return (
+      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center font-semibold text-blue-600 shrink-0">
+        {getInitials(user?.fullName)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-10 h-10 rounded-full overflow-hidden bg-slate-100 shrink-0">
+      {!imageLoaded && (
+        <div className="absolute inset-0 bg-slate-200 animate-pulse" />
+      )}
+
+      <img
+        src={user.profileImageUrl}
+        alt={user.fullName}
+        loading="lazy"
+        onLoad={() => setImageLoaded(true)}
+        onError={() => setImageLoaded(false)}
+        className={`w-full h-full object-cover transition-opacity duration-200 ${
+          imageLoaded ? "opacity-100" : "opacity-0"
+        }`}
+      />
+    </div>
+  );
+};
+
+
 
 const Home = () => {
   const {user}=useUser();
@@ -17,7 +60,8 @@ const [searchResults, setSearchResults] = useState([]);
 const [searchLoading, setSearchLoading] = useState(false);
 const [searchOpen, setSearchOpen] = useState(false);
 
-  const navigate=useNavigate();
+
+const navigate=useNavigate();
 
  const getInitials = (fullName) => {
   if (!fullName) return "";
@@ -33,7 +77,84 @@ const toggleNotification = () => {
   setNotificationOpen((prev) => !prev);
 };
 
-  // Sample chat list
+const handleSendFriendRequest = async (recipientId) => {
+  try {
+    const { data } = await api.post(
+      `/auth/send-request/${recipientId}`
+    );
+
+    toast.success("Friend request sent!");
+    
+
+    setSearchResults((prev) =>
+      prev.map((u) =>
+        u._id === recipientId
+          ? {
+              ...u,
+              friendshipStatus: "pending_sent",
+            }
+          : u
+      )
+    );
+  } catch (error) {
+     toast.error(
+      error.response?.data?.message || "Failed to send friend request"
+    );
+    
+  }
+};
+
+
+useEffect(() => {
+  if (!search.trim()) {
+    setSearchResults([]);
+    setSearchOpen(false);
+    return;
+  }
+
+  const timer = setTimeout(async () => {
+    try {
+      setSearchLoading(true);
+
+      const { data } = await api.get("/auth/users/search", {
+        params: {
+          query: search.trim(),
+        },
+      });
+
+      const usersWithStatus = await Promise.all(
+        data.users.map(async (u) => {
+          try {
+            const { data: statusData } = await api.get(
+              `/auth/status/${u._id}`
+            );
+
+            return {
+              ...u,
+              friendshipStatus: statusData.status,
+            };
+          } catch (error) {
+            return {
+              ...u,
+              friendshipStatus: "none",
+            };
+          }
+        })
+      );
+
+      setSearchResults(usersWithStatus);
+      setSearchOpen(true);
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, 300);
+
+  return () => clearTimeout(timer);
+}, [search]);
+  
   const chats = [
     { id: 1, name: "Alice Rai", status: "online", lastMessage: "Hey, are we still meeting?" },
     { id: 2, name: "Bikash Chaudhary", status: "online", lastMessage: "Project files uploaded." },
@@ -47,41 +168,13 @@ const toggleNotification = () => {
     setMessageInput("");
   };
 
-
-  useEffect(() => {
-  if (!search.trim()) {
-    setSearchResults([]);
-    setSearchOpen(false);
-    return;
-  }
-
-  const timer = setTimeout(async () => {
-    try {
-      setSearchLoading(true);
-
-      const { data } = await axios.get("http://localhost:3000/api/auth/users/search", {
-        params: {
-          query: search.trim(),
-        },
-      });
-
-      setSearchResults(data.users);
-      setSearchOpen(true);
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setSearchLoading(false);
-    }
-  }, 300);
-
-  return () => clearTimeout(timer);
-}, [search]);
+ 
 
   return (
     <div className="flex flex-col h-screen bg-slate-50 overflow-hidden font-sans">
-      {/*Navbar*/}
+      
       <header className="flex items-center justify-between px-4 lg:px-6 h-16 bg-white border-b border-slate-200 z-30 shrink-0">
-        {/*Logo & Mobile Toggle */}
+       
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -99,7 +192,7 @@ const toggleNotification = () => {
           </div>
         </div>
 
-        {/*Search Bar */}
+       
         <div className="hidden md:flex relative w-96">
   <Search className="absolute left-3 top-3.5 w-4 h-4 text-slate-400" />
 
@@ -132,55 +225,84 @@ const toggleNotification = () => {
   </p>
 </div>
       ) : (
-        searchResults.map((u) => (
-          <button
-            key={u._id}
-            onClick={() => {
-              console.log(u);
+  searchResults.map((u) => (
+  <button
+    key={u._id}
+    onClick={() => {
+      console.log("Selected user:", u);
 
-              setSearch("");
-              setSearchOpen(false);
-            }}
-            className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 transition cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center font-semibold text-blue-600 overflow-hidden">
-  {u.profileImageUrl ? (
-    <img
-      src={u.profileImageUrl}
-      alt={u.fullName}
-      className="w-full h-full object-cover"
+      setSelectedChat(u);
+
+      setSearch("");
+      setSearchOpen(false);
+    }}
+    className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 transition cursor-pointer"
+  >
+    <SearchAvatar
+      user={u}
+      getInitials={getInitials}
     />
-  ) : (
-    getInitials(u.fullName)
-  )}
+
+   <div className="flex items-center w-full">
+  <div className="text-left min-w-0">
+    <p className="font-medium text-gray-800 truncate">
+      {u.fullName}
+    </p>
+
+    <p className="text-[12px] text-gray-500 truncate">
+      @{u.username}
+    </p>
+  </div>
+
+  <button
+  onClick={(e) => {
+    e.stopPropagation();
+
+    if (u.friendshipStatus === "none") {
+      handleSendFriendRequest(u._id);
+    }
+  }}
+  disabled={
+    u.friendshipStatus === "pending_sent" ||
+    u.friendshipStatus === "pending_received" ||
+    u.friendshipStatus === "friends"
+  }
+  className={`ml-auto px-3 py-1.5 text-sm font-medium rounded-md ${
+    u.friendshipStatus === "friends"
+      ? "bg-green-100 text-green-700 cursor-default"
+      : u.friendshipStatus === "pending_sent"
+      ? "bg-gray-100 text-gray-600 cursor-default"
+      : u.friendshipStatus === "pending_received"
+      ? "bg-blue-100 text-blue-600 cursor-default"
+      : "bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+  }`}
+>
+  {u.friendshipStatus === "friends"
+    ? "Friends"
+    : u.friendshipStatus === "pending_sent"
+    ? "Requested"
+    : u.friendshipStatus === "pending_received"
+    ? "Respond"
+    : "Add Friend"}
+</button>
 </div>
-
-            <div className="text-left">
-              <p className="font-medium text-gray-800">
-                {u.fullName}
-              </p>
-
-              <p className="text-[12px] text-gray-500">
-                {u.username}
-              </p>
-            </div>
-          </button>
-        ))
-      )}
+  </button>
+))
+)}
     </div>
   )}
 </div>
 
-        {/* Notifications & Profile */}
+       
         <div className="flex items-center gap-3">
-          <button onClick={toggleNotification} className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors">
+          <button onClick={toggleNotification} className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer">
             <Bell className="w-5 h-5" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
           </button>
           <button onClick={()=>{
             navigate('/profile')
-          }} className="flex items-center gap-2 pl-2 border-l border-slate-200">
-           <div className="w-9 h-9 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm overflow-hidden">
+          }} className="flex items-center gap-2 pl-2 border-l border-slate-200 cursor-pointer">
+           <div className="w-9 h-9 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm overflow-hidden ">
   {user?.profileImageUrl ? (
     <img
       src={user.profileImageUrl}
@@ -207,7 +329,7 @@ const toggleNotification = () => {
       onClick={(e) => e.stopPropagation()}
       className="fixed right-4 top-16 w-70 md:w-85 origin-top-right animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl ring-1 ring-black/5"
     >
-      {/* Header */}
+      
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-blue-50 p-2">
@@ -231,7 +353,7 @@ const toggleNotification = () => {
         </button>
       </div>
 
-      {/* Empty State */}
+      
       <div className="flex flex-col items-center justify-center px-8 py-14">
         <div className="rounded-full bg-gray-50 p-5 ring-1 ring-gray-100">
           <BellOff className="h-8 w-8 text-gray-300" strokeWidth={1.5} />
@@ -253,10 +375,10 @@ const toggleNotification = () => {
 
     
 
-      {/*Main Content*/}
+    
       <div className="flex flex-1 overflow-hidden relative">
         
-        {/* Backdrop for mobile sidebar */}
+      
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
@@ -264,13 +386,13 @@ const toggleNotification = () => {
           />
         )}
 
-        {/* ================= CHATS SIDEBAR ================= */}
+    
         <aside
           className={`absolute lg:relative z-20 inset-y-0 left-0 w-80 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
           }`}
         >
-          {/* Sidebar Search */}
+         
           <div className="p-4 border-b border-slate-100">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
@@ -282,14 +404,14 @@ const toggleNotification = () => {
             </div>
           </div>
 
-          {/* Chats List */}
+         
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
             {chats.map((chat) => (
               <button
                 key={chat.id}
                 onClick={() => {
                   setSelectedChat(chat);
-                  setSidebarOpen(false); // Close sidebar on mobile when chat selected
+                  setSidebarOpen(false); 
                 }}
                 className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
                   selectedChat?.id === chat.id
@@ -318,7 +440,7 @@ const toggleNotification = () => {
             ))}
           </div>
 
-          {/* New Chat Button */}
+          
           <div className="p-4 border-t border-slate-100">
             <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]">
               <Plus className="w-4 h-4" />
@@ -327,64 +449,107 @@ const toggleNotification = () => {
           </div>
         </aside>
 
-        {/* ================= CHAT AREA ================= */}
+        
         <main className="flex-1 flex flex-col bg-white overflow-hidden">
           {selectedChat ? (
             <>
-              {/* Active Chat Header */}
-              <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-white shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-700">
-                    {selectedChat.name[0]}
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-semibold text-slate-900">{selectedChat.name}</h2>
-                    <span className="text-xs text-emerald-600 font-medium capitalize">
-                      {selectedChat.status}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 text-slate-600">
-                  <button className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                    <Phone className="w-5 h-5" />
-                  </button>
-                  <button className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                    <Video className="w-5 h-5" />
-                  </button>
-                  <button className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                    <Info className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
+   
+    <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-white shrink-0">
 
-              {/* Messages Container */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
-                <div className="flex justify-start">
-                  <div className="bg-white border border-slate-200 text-slate-800 text-sm px-4 py-2.5 rounded-2xl rounded-tl-sm max-w-md shadow-xs">
-                    Hey there! How can I help you today?
-                  </div>
-                </div>
-              </div>
+     
+      <div className="flex items-center gap-3 min-w-0">
 
-              {/* Message Input Form */}
-              <form onSubmit={handleSendMessage} className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center gap-3">
-                <input
-                  type="text"
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-1 bg-slate-100 text-slate-800 text-sm rounded-xl px-4 py-3 border border-transparent focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
-                />
-                <button
-                  type="submit"
-                  className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl flex items-center justify-center transition-all shadow-sm shrink-0"
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              </form>
-            </>
+        
+        <SearchAvatar
+          user={selectedChat}
+          getInitials={getInitials}
+        />
+
+       
+        <div className="min-w-0">
+
+          <h2 className="text-sm font-semibold text-slate-900 truncate">
+            {selectedChat.fullName}
+          </h2>
+
+          <p className="text-xs text-slate-500 truncate">
+            @{selectedChat.username}
+          </p>
+
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+
+            <span className="text-[11px] text-emerald-600 font-medium">
+              online
+            </span>
+          </div>
+
+        </div>
+      </div>
+
+
+    
+      <button
+        onClick={() => setSelectedChat(null)}
+        className="p-2 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+        aria-label="Close chat"
+      >
+        <X size={18} strokeWidth={3} />
+      </button>
+
+    </div>
+
+
+   
+    <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+
+      <div className="h-full flex flex-col items-center justify-center text-center">
+
+       
+        <SearchAvatar
+          user={selectedChat}
+          getInitials={getInitials}
+        />
+
+       
+        <h3 className="mt-4 text-sm font-semibold text-slate-700">
+          No messages
+        </h3>
+
+        <p className="mt-1 text-xs text-slate-500 max-w-xs">
+          Start a conversation with {selectedChat.fullName}
+        </p>
+
+      </div>
+
+    </div>
+
+
+    
+    <form
+      onSubmit={handleSendMessage}
+      className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center gap-3"
+    >
+
+      <input
+        type="text"
+        value={messageInput}
+        onChange={(e) => setMessageInput(e.target.value)}
+        placeholder={`Message ${selectedChat.fullName}...`}
+        className="flex-1 bg-slate-100 text-slate-800 text-sm rounded-xl px-4 py-3 border border-transparent focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
+      />
+
+      <button
+        type="submit"
+        className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl flex items-center justify-center transition-all shadow-sm cursor-pointer"
+      >
+        <Send className="w-4 h-4" />
+      </button>
+
+    </form>
+  </>
           ) : (
-            /* Empty State */
+          
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
               <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-xs">
                 <MessageSquare className="w-8 h-8" />
@@ -405,4 +570,7 @@ const toggleNotification = () => {
   );
 };
 
+
+
 export default Home;
+

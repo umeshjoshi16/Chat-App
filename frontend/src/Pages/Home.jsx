@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../Context/userContext";
 import { io } from "socket.io-client";
+import Logo from "../assets/Logo.png";
+
 
 const api = axios.create({
   baseURL: "http://localhost:3000/api",
@@ -63,6 +65,7 @@ const [searchOpen, setSearchOpen] = useState(false);
 
 const [notifications, setNotifications] = useState([]);
 const [unreadCount, setUnreadCount] = useState(0);
+const [selectedNotification, setSelectedNotification] = useState(null);
 
 
 const navigate=useNavigate();
@@ -105,6 +108,100 @@ const handleSendFriendRequest = async (recipientId) => {
       error.response?.data?.message || "Failed to send friend request"
     );
     
+  }
+};
+
+const handleCancelFriendRequest = async (friendshipId, userId) => {
+  try {
+    if (!friendshipId) {
+      toast.error("Friendship not found");
+      return;
+    }
+
+    await api.delete(`/auth/cancel-request/${friendshipId}`);
+
+    toast.success("Friend request cancelled");
+
+    setSearchResults((prev) =>
+      prev.map((u) =>
+        u._id === userId
+          ? {
+              ...u,
+              friendshipStatus: "none",
+              friendshipId: null,
+            }
+          : u
+      )
+    );
+  } catch (error) {
+    console.error("Cancel request error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to cancel friend request"
+    );
+  }
+};
+
+const handleAcceptFriendRequest = async () => {
+  try {
+    const friendshipId = selectedNotification?.data?.friendshipId;
+
+    if (!friendshipId) {
+      toast.error("Friend request not found");
+      return;
+    }
+
+    await api.put(`/auth/accept-request/${friendshipId}`);
+
+    toast.success("Friend request accepted");
+
+    setNotifications((prev) =>
+      prev.filter(
+        (notification) =>
+          notification._id !== selectedNotification._id
+      )
+    );
+
+    setSelectedNotification(null);
+  } catch (error) {
+    console.error("Accept friend request error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to accept friend request"
+    );
+  }
+};
+
+const handleRejectFriendRequest = async () => {
+  try {
+    const friendshipId = selectedNotification?.data?.friendshipId;
+
+    if (!friendshipId) {
+      toast.error("Friend request not found");
+      return;
+    }
+
+    await api.delete(`/auth/reject-request/${friendshipId}`);
+
+    toast.success("Friend request rejected");
+
+    setNotifications((prev) =>
+      prev.filter(
+        (notification) =>
+          notification._id !== selectedNotification._id
+      )
+    );
+
+    setSelectedNotification(null);
+  } catch (error) {
+    console.error("Reject friend request error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+        "Failed to reject friend request"
+    );
   }
 };
 
@@ -182,10 +279,12 @@ useEffect(() => {
               `/auth/status/${u._id}`
             );
 
-            return {
-              ...u,
-              friendshipStatus: statusData.status,
-            };
+            
+      return {
+        ...u,
+        friendshipStatus: statusData.status,
+        friendshipId: statusData.friendshipId,
+      };
           } catch (error) {
             return {
               ...u,
@@ -231,6 +330,10 @@ useEffect(() => {
       );
 
       setUnreadCount((prev) => Math.max(0, prev - 1));
+       
+    }
+     if (notification.type === "friend_request") {
+      setSelectedNotification(notification);
     }
   } catch (error) {
     console.error("Failed to mark notification as seen:", error);
@@ -260,10 +363,8 @@ useEffect(() => {
             {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
           <div className="flex items-center gap-2">
-            <div className="bg-blue-600 text-white p-2 rounded-xl flex items-center justify-center">
-              <MessageSquare className="w-5 h-5" />
-            </div>
-            <span className="font-bold text-lg text-slate-800 tracking-tight">ChatApp</span>
+           
+           <img src={Logo} alt="logo" className="h-12 cursor-pointer" />
             
           </div>
         </div>
@@ -277,7 +378,7 @@ useEffect(() => {
     placeholder="Search users..."
     value={search}
     onChange={(e) => setSearch(e.target.value)}
-    className="w-full bg-slate-100 text-slate-800 text-sm rounded-xl pl-9 pr-4 py-2 border border-transparent focus:bg-white focus:border-blue-500 focus:outline-none"
+    className="w-full bg-slate-100 text-slate-800 text-sm rounded-xl pl-9 pr-4 py-2 border border-transparent focus:bg-white focus:border-teal-500  focus:outline-none"
   />
 
   {searchOpen && (
@@ -329,34 +430,39 @@ useEffect(() => {
       @{u.username}
     </p>
   </div>
-
-  <button
+<button
   onClick={(e) => {
     e.stopPropagation();
 
     if (u.friendshipStatus === "none") {
       handleSendFriendRequest(u._id);
     }
+
+    if (u.friendshipStatus === "pending_sent") {
+      handleCancelFriendRequest(
+        u.friendshipId,
+        u._id
+      );
+    }
   }}
   disabled={
-    u.friendshipStatus === "pending_sent" ||
     u.friendshipStatus === "pending_received" ||
     u.friendshipStatus === "friends"
   }
-  className={`ml-auto px-3 py-1.5 text-sm font-medium rounded-md ${
+  className={`ml-auto px-3 py-1.5 text-sm font-medium ${
     u.friendshipStatus === "friends"
-      ? "bg-green-100 text-green-700 cursor-default"
+      ? "text-green-600 cursor-default"
       : u.friendshipStatus === "pending_sent"
-      ? "bg-gray-100 text-gray-600 cursor-default"
+      ? "text-gray-500 hover:text-gray-700 cursor-pointer"
       : u.friendshipStatus === "pending_received"
-      ? "bg-blue-100 text-blue-600 cursor-default"
-      : "bg-sky-500 text-white hover:bg-sky-600 cursor-pointer"
+      ? "text-teal-600 cursor-default"
+      : "text-teal-600 hover:text-teal-700 cursor-pointer"
   }`}
 >
   {u.friendshipStatus === "friends"
     ? "Friends"
     : u.friendshipStatus === "pending_sent"
-    ? "Requested"
+    ? "Cancel Request"
     : u.friendshipStatus === "pending_received"
     ? "Respond"
     : "Add Friend"}
@@ -386,7 +492,7 @@ useEffect(() => {
           <button onClick={()=>{
             navigate('/profile')
           }} className="flex items-center gap-2 pl-2 border-l border-slate-200 cursor-pointer">
-           <div className="w-9 h-9 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-sm overflow-hidden ">
+           <div className="w-9 h-9 bg-blue-100 text-teal-600 rounded-full flex items-center justify-center font-semibold text-sm overflow-hidden ">
   {user?.profileImageUrl ? (
     <img
       src={user.profileImageUrl}
@@ -417,7 +523,7 @@ useEffect(() => {
       <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-blue-50 p-2">
-            <Bell className="h-5 w-5 text-blue-600" />
+            <Bell className="h-5 w-5 text-teal-600" />
           </div>
 
           <div>
@@ -513,7 +619,7 @@ useEffect(() => {
 
             
               {!notification.seen && (
-                <span className="w-2.5 h-2.5 bg-blue-500 rounded-full shrink-0" />
+                <span className="w-2.5 h-2.5 bg-teal-500 rounded-full shrink-0" />
               )}
 
             </button>
@@ -522,6 +628,74 @@ useEffect(() => {
         )}
 
       </div>
+    </div>
+  </div>
+)}
+
+{selectedNotification && (
+  <div
+    onClick={() => setSelectedNotification(null)}
+    className="fixed inset-0 z-60 bg-black/50 flex items-center justify-center p-4"
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="relative bg-white w-full max-w-md rounded-2xl border border-[#E5E7EB] shadow-2xl p-6 md:p-8"
+    >
+      <button
+        type="button"
+        onClick={() => setSelectedNotification(null)}
+        className="absolute top-4 right-4 p-1.5 rounded-lg text-[#6B7280] hover:bg-[#F5F6F8] hover:text-[#12151C] transition-colors cursor-pointer"
+        aria-label="Close"
+      >
+        <X className="w-5 h-5" strokeWidth={2.5} />
+      </button>
+
+      <div className="flex flex-col items-center text-center pt-2">
+       
+
+        <div className="scale-150">
+  <SearchAvatar
+    user={selectedNotification.sender}
+    getInitials={getInitials}
+  />
+</div>
+       
+
+        <h2 className="mt-4 heading text-xl font-bold text-[#12151C]">
+          {selectedNotification.sender?.fullName}
+        </h2>
+
+        <p className="mt-1 text-sm heading text-[#6B7280]">
+          @{selectedNotification.sender?.username}
+        </p>
+      </div>
+
+      <div className="mt-6 rounded-2xl bg-[#F8FAFC] border border-[#E5E7EB] p-4">
+        <h3 className="text-sm font-semibold text-[#12151C] mb-2">
+          Friend Request
+        </h3>
+
+        <p className="text-sm  text-[#6B7280] leading-relaxed">
+          {selectedNotification.message}
+        </p>
+      </div>
+<div className="flex gap-3 mt-6">
+  <button
+    type="button"
+    onClick={handleRejectFriendRequest}
+    className="flex-1 px-5 py-2.5 rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#6B7280] hover:bg-[#F5F6F8] hover:text-[#12151C] transition-colors cursor-pointer"
+  >
+    Reject
+  </button>
+
+  <button
+    type="button"
+    onClick={handleAcceptFriendRequest}
+    className="flex-1 px-5 py-2.5 rounded-xl bg-teal-600 text-sm font-medium text-white hover:bg-teal-700 transition-colors cursor-pointer"
+  >
+    Accept
+  </button>
+</div>
     </div>
   </div>
 )}
@@ -594,7 +768,7 @@ useEffect(() => {
 
           
           <div className="p-4 border-t border-slate-100">
-            <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]">
+            <button className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]">
               <Plus className="w-4 h-4" />
               <span>New Chat</span>
             </button>
@@ -688,12 +862,12 @@ useEffect(() => {
         value={messageInput}
         onChange={(e) => setMessageInput(e.target.value)}
         placeholder={`Message ${selectedChat.fullName}...`}
-        className="flex-1 bg-slate-100 text-slate-800 text-sm rounded-xl px-4 py-3 border border-transparent focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
+        className="flex-1 bg-slate-100 text-slate-800 text-sm rounded-xl px-4 py-3 border border-transparent focus:bg-white focus:border-teal-500 focus:outline-none transition-all"
       />
 
       <button
         type="submit"
-        className="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-xl flex items-center justify-center transition-all shadow-sm cursor-pointer"
+        className="bg-teal-600 hover:bg-teal-700 text-white p-3 rounded-xl flex items-center justify-center transition-all shadow-sm cursor-pointer"
       >
         <Send className="w-4 h-4" />
       </button>
@@ -703,11 +877,11 @@ useEffect(() => {
           ) : (
           
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50">
-              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 shadow-xs">
-                <MessageSquare className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-1">Welcome to ChatApp 👋</h3>
-              <p className="text-sm text-slate-500 max-w-sm">
+              
+               
+              
+              <h3 className="text-xl font-bold text-slate-800 mb-1 flex items-center heading">Welcome to <img src={Logo} alt="logo" className="h-12 rounded-xl"/></h3>
+              <p className="text-sm sub-heading text-slate-500 max-w-md">
                 Select a conversation from the sidebar to start chatting or create a new chat.
               </p>
             </div>

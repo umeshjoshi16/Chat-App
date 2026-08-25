@@ -12,10 +12,29 @@ createRoot(document.getElementById('root')).render(
        <App />
        <Toaster
   position="top-right"
-  richColors
   closeButton
-  expand
-  duration={3000}
+  toastOptions={{
+    duration: 3000,
+    style: {
+      fontFamily: "Inter, sans-serif",
+      fontSize: "14px",
+      fontWeight: 500,
+      borderRadius: "10px",
+      padding: "12px 16px",
+    },
+    success: {
+      style: {
+        background: "#0d9488",
+        color: "#ffffff",
+      },
+    },
+    error: {
+      style: {
+        background: "#12151C",
+        color: "#ffffff",
+      },
+    },
+  }}
 />
       </BrowserRouter>
    

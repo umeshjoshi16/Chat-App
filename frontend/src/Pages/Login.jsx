@@ -65,15 +65,17 @@ const onSubmit = async (data) => {
  
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+     <div className="min-h-screen bg-white text-[#12151C] font-[Inter] flex items-center justify-center px-4">
 
-      <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 p-8">
+      
 
-        <h1 className="text-3xl font-bold text-center text-indigo-600">
+      <div className="w-full max-w-md bg-white rounded-xl border border-[#E5E7EB] p-8">
+
+        <h1 className="heading text-3xl font-bold text-center text-teal-600">
           Welcome Back
         </h1>
 
-        <p className="text-center text-gray-500 mt-2 mb-8">
+        <p className=" sub-heading text-center text-[#6B7280] mt-2 mb-8">
           Login to your account
         </p>
 
@@ -82,9 +84,9 @@ const onSubmit = async (data) => {
           className="space-y-5"
         >
 
-          {/* Email */}
+        
           <div>
-            <label className="block mb-2 font-medium">
+            <label className="block mb-2 font-medium text-[#12151C]">
               Email*
             </label>
 
@@ -96,7 +98,7 @@ const onSubmit = async (data) => {
               ${
                 errors.email
                   ? "border-red-500 focus:ring-red-500"
-                  : "border-gray-300 focus:ring-indigo-500"
+                  : "border-[#E5E7EB] focus:ring-teal-600"
               }
               focus:ring`}
             />
@@ -108,9 +110,9 @@ const onSubmit = async (data) => {
             )}
           </div>
 
-          {/* Password */}
+          
           <div>
-            <label className="block mb-2 font-medium">
+            <label className="block mb-2 font-medium text-[#12151C]">
               Password*
             </label>
 
@@ -124,7 +126,7 @@ const onSubmit = async (data) => {
                 ${
                   errors.password
                     ? "border-red-500 focus:ring-red-500"
-                    : "border-gray-300 focus:ring-indigo-500"
+                    : "border-[#E5E7EB] focus:ring-teal-600"
                 }
                 focus:ring`}
               />
@@ -134,7 +136,7 @@ const onSubmit = async (data) => {
                 onClick={() =>
                   setShowPassword(!showPassword)
                 }
-                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-indigo-600 cursor-pointer"
+                className="absolute inset-y-0 right-3 flex items-center text-[#6B7280] hover:text-teal-600 cursor-pointer"
               >
                 {showPassword ? (
                   <EyeOff size={20} />
@@ -152,36 +154,35 @@ const onSubmit = async (data) => {
             )}
           </div>
 
-          {/*  Forgot Password */}
+         
           <div className="flex items-center justify-end">
 
-
             <Link
-              to="/forgot-password"
-              className="text-indigo-600 text-sm hover:underline"
+              // to="/forgot-password"
+              className="text-teal-600 text-sm hover:underline"
             >
               Forgot Password?
             </Link>
 
           </div>
 
-          {/* Login Button */}
+        
           <button
             type="submit"
             disabled={isSubmitting}
-            className={`w-full bg-indigo-600 hover:bg-indigo-700 cursor-pointer py-3 rounded-lg font-semibold text-white transition
-            `}
+            className="w-full bg-[#12151C] hover:bg-[#2A2E38] cursor-pointer py-3 rounded-lg font-semibold text-white transition"
           >
             Login
           </button>
 
         </form>
 
-        <p className="text-center mt-6 text-gray-600">
+       
+        <p className="text-center mt-6 text-[#6B7280]">
           Don't have an account?{" "}
           <Link
             to="/register"
-            className="text-indigo-600 font-semibold hover:underline"
+            className="text-teal-600 font-semibold hover:underline"
           >
             Register
           </Link>

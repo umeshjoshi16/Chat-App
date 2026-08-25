@@ -1,6 +1,7 @@
 import { Friend, User } from '../Model/user.js';
 import { Notification } from '../Model/notification.js';
 import { getIO } from '../socket.js';
+import { getSignedProfileImageUrl } from "./generatePresignedUrl.js";
 
 export const checkFriendship = async (req, res, next) => {
   try {
@@ -89,7 +90,44 @@ export const checkFriendship = async (req, res, next) => {
     next(error);
   }
 };
+export const cancelFriendRequest = async (req, res, next) => {
+  try {
+    const currentUserId = req.user.id;
+    const friendshipId = req.params.friendshipId;
 
+    const friendship = await Friend.findById(friendshipId);
+
+    if (!friendship) {
+      return res.status(404).json({
+        success: false,
+        message: "Friend request not found.",
+      });
+    }
+
+    if (friendship.requester.toString() !== currentUserId) {
+      return res.status(403).json({
+        success: false,
+        message: "You cannot cancel this request.",
+      });
+    }
+
+    if (friendship.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "This request is no longer pending.",
+      });
+    }
+
+    await Friend.findByIdAndDelete(friendshipId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Friend request cancelled successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 export const sendFriendRequest = async (req, res, next) => {
   try {
     const currentUserId = req.user.id;
@@ -322,44 +360,45 @@ export const rejectFriendRequest = async (req, res, next) => {
   }
 };
 
-export const cancelFriendRequest = async (req, res, next) => {
-  try {
-    const currentUserId = req.user.id;
-    const friendshipId = req.params.friendshipId;
+// export const cancelFriendRequest = async (req, res, next) => {
+//   try {
+//     const currentUserId = req.user.id;
+//     const friendshipId = req.params.friendshipId;
 
-    const friendship = await Friend.findById(friendshipId);
+//     const friendship = await Friend.findById(friendshipId);
 
-    if (!friendship) {
-      return res.status(404).json({
-        success: false,
-        message: "Friend request not found.",
-      });
-    }
+//     if (!friendship) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Friend request not found.",
+//       });
+//     }
 
-    if (friendship.requester.toString() !== currentUserId) {
-      return res.status(403).json({
-        success: false,
-        message: "You cannot cancel this request.",
-      });
-    }
+//     if (friendship.requester.toString() !== currentUserId) {
+//       return res.status(403).json({
+//         success: false,
+//         message: "You cannot cancel this request.",
+//       });
+//     }
 
-    if (friendship.status !== "pending") {
-      return res.status(400).json({
-        success: false,
-        message: "This request is no longer pending.",
-      });
-    }
+//     if (friendship.status !== "pending") {
+//       return res.status(400).json({
+//         success: false,
+//         message: "This request is no longer pending.",
+//       });
+//     }
 
-    await Friend.findByIdAndDelete(friendshipId);
+//     await Friend.findByIdAndDelete(friendshipId);
 
-    return res.status(200).json({
-      success: true,
-      message: "Friend request cancelled.",
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+//    return res.status(200).json({
+//   success: true,
+//   status,
+//   friendshipId: friendship?._id || null,
+// });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 export const removeFriend = async (req, res, next) => {
   try {
@@ -392,6 +431,52 @@ export const removeFriend = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Friend removed successfully.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getFriends = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    const friendships = await Friend.find({
+      $or: [
+        { requester: userId, status: "accepted" },
+        { recipient: userId, status: "accepted" },
+      ],
+    })
+      .populate("requester", "fullName username profileKey")
+      .populate("recipient", "fullName username profileKey");
+
+    const friends = await Promise.all(
+      friendships.map(async (friendship) => {
+        const friend =
+          friendship.requester._id.toString() === userId
+            ? friendship.recipient
+            : friendship.requester;
+
+        let profileImageUrl = null;
+
+        if (friend.profileKey) {
+          profileImageUrl = await getSignedProfileImageUrl(
+            friend.profileKey
+          );
+        }
+
+        return {
+          _id: friend._id,
+          fullName: friend.fullName,
+          username: friend.username,
+          profileImageUrl,
+        };
+      })
+    );
+
+    return res.status(200).json({
+      success: true,
+      friends,
     });
   } catch (error) {
     next(error);

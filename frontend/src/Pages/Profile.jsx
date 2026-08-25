@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 const Profile = () => {
   const { user, setUser } = useUser();
   const navigate = useNavigate();
+  const [friends, setFriends] = useState([]);
+  const [friendsLoading, setFriendsLoading] = useState(true);
 
   const activeUser = user || {};
 
@@ -27,7 +29,32 @@ const Profile = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
 
-  
+  useEffect(() => {
+  const fetchFriends = async () => {
+    try {
+      setFriendsLoading(true);
+
+      const { data } = await axios.get(
+        "http://localhost:3000/api/auth/friends",
+        {
+          withCredentials: true,
+        }
+      );
+
+      setFriends(data.friends || []);
+    } catch (error) {
+      console.error("Failed to fetch friends:", error);
+      toast.error("Failed to load friends");
+    } finally {
+      setFriendsLoading(false);
+    }
+  };
+
+  if (user?._id) {
+    fetchFriends();
+  }
+}, [user]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -175,367 +202,477 @@ toast.success("Profile updated successfully.");
   const displayAvatar = user?.profileImageUrl || user?.avatar || formData.avatar;
 
   return (
-    <div className="flex-1 bg-slate-50 overflow-y-auto h-full flex flex-col font-sans relative min-h-screen">
-     
-      <div className="max-w-4xl w-full mx-auto p-6 md:p-8 space-y-6">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900  cursor-pointer bg-white border border-slate-200"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back 
-        </button>
+   <div className="flex-1 bg-white overflow-y-auto h-full flex flex-col font-[Inter] relative min-h-screen">
 
-        
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="h-32 bg-linear-to-r from-blue-600 to-indigo-600 relative"></div>
-          <div className="px-6 pb-6 pt-0 relative flex flex-col sm:flex-row sm:items-end justify-between -mt-16 gap-4">
-            <div className="flex items-end gap-4">
-              <div className="relative group">
-                <div className="w-28 h-28 rounded-full ring-4 ring-white bg-slate-200 overflow-hidden shadow-md flex items-center justify-center font-bold text-3xl text-slate-600">
-                  {displayAvatar ? (
-                    <img
-                      src={displayAvatar}
-                      alt="Profile"
-                      className="w-full h-full object-cover  cursor-pointer"
-                      onClick={()=>{
-                        setImagePreviewOpen(true);
-                      }}
-                    />
-                  ) : (
-                    formData.fullName?.[0]?.toUpperCase()
-                  )}
-                </div>
-              </div>
-            </div>
+  <div className="max-w-4xl w-full mx-auto p-6 md:p-8 space-y-6">
+    <button
+      type="button"
+      onClick={() => navigate(-1)}
+      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-[#6B7280] hover:bg-[#F5F6F8] hover:text-[#12151C] cursor-pointer bg-white border border-[#E5E7EB]"
+    >
+      <ArrowLeft className="w-4 h-4" />
+      Back
+    </button>
 
-            <div>
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="px-5 py-2.5 rounded-xl font-medium text-sm  shadow-sm bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
-              >
-                Edit Profile
-              </button>
-            </div>
-          </div>
+    <div className="bg-white rounded-2xl border border-[#E5E7EB] overflow-hidden shadow-sm">
+      <div className="h-32 bg-linear-to-r from-teal-600 to-teal-500 relative"></div>
 
-          
-          <div className="px-6 mb-4">
-            <h2 className="text-xl font-bold text-slate-900">{formData.fullName}</h2>
-            <p className="text-sm text-slate-500">@{formData.username}</p>
-          </div>
-
-         
-          <div className="px-6 pb-6 border-t border-slate-100 pt-4">
-            <h3 className="text-sm font-semibold text-slate-700 mb-2">Bio</h3>
-            {formData.bio ? (
-              <p className="text-sm text-slate-600 leading-relaxed">{formData.bio}</p>
-            ) : (
-              <p className="text-sm italic text-slate-400">No bio added yet.</p>
-            )}
-          </div>
-
-      
-          <div className="px-6 pb-6 border-t border-slate-100 pt-4">
-            <h3 className="text-sm font-semibold text-slate-700 mb-2">Gender</h3>
-            {formData.gender ? (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 capitalize">
-                {formData.gender}
-              </span>
-            ) : (
-              <p className="text-sm italic text-slate-400">No gender specified.</p>
-            )}
-          </div>
-        </div>
-
-       
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
-          <div className="mb-6 pb-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg md:text-xl font-bold text-slate-900">
-                Personal Information
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Your account information and profile details.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 transition hover:bg-slate-50">
-              <div className="flex items-center gap-2 text-slate-700 mb-1 font-bold">
-                <User className="h-4 w-4 text-slate-700" />
-                <span className="text-xs uppercase tracking-wider">Full Name</span>
-              </div>
-              <p className="text-[13px] italic font-normal text-slate-500 pl-6">
-                {formData.fullName || <span className="text-slate-400">Not provided</span>}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 transition hover:bg-slate-50">
-              <div className="flex items-center gap-2 text-slate-700 mb-1 font-bold">
-                <AtSign className="h-4 w-4 text-slate-700" />
-                <span className="text-xs uppercase tracking-wider">Username</span>
-              </div>
-              <p className="text-[13px] italic font-normal text-slate-500 pl-6">
-                {formData.username ? `${formData.username}` : <span className="text-slate-400">Not provided</span>}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 transition hover:bg-slate-50">
-              <div className="flex items-center gap-2 text-slate-700 mb-1 font-bold">
-                <Mail className="h-4 w-4 text-slate-700" />
-                <span className="text-xs uppercase tracking-wider">Email Address</span>
-              </div>
-              <p className="text-[13px] italic font-normal text-slate-500 pl-6 break-all">
-                {formData.email || <span className="text-slate-400">Not provided</span>}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50/50 border border-slate-100 transition hover:bg-slate-50">
-              <div className="flex items-center gap-2 text-slate-700 mb-1 font-bold">
-                <Calendar className="h-4 w-4 text-slate-700" />
-                <span className="text-xs uppercase tracking-wider">Member Since</span>
-              </div>
-              <p className="text-[13px] italic font-normal text-slate-500 pl-6">
-                {formattedDate || <span className="text-slate-400">Unknown</span>}
-              </p>
+      <div className="px-6 pb-6 pt-0 relative flex flex-col sm:flex-row sm:items-end justify-between -mt-16 gap-4">
+        <div className="flex items-end gap-4">
+          <div className="relative group">
+            <div className="w-28 h-28 rounded-full ring-4 ring-white bg-[#F5F6F8] overflow-hidden shadow-md flex items-center justify-center font-bold text-3xl text-[#6B7280]">
+              {displayAvatar ? (
+                <img
+                  src={displayAvatar}
+                  alt="Profile"
+                  className="w-full h-full object-cover cursor-pointer"
+                  onClick={() => {
+                    setImagePreviewOpen(true);
+                  }}
+                />
+              ) : (
+                formData.fullName?.[0]?.toUpperCase()
+              )}
             </div>
           </div>
         </div>
 
-        <div className="w-full flex items-center justify-center">
+        <div>
           <button
-  type="button"
-   onClick={() => setIsLoggingOut(true)}
-  className="w-fit flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 bg-red-50 border border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
->
-  <LogOut className="w-5 h-5" />
-  Logout
-</button>
-          
-
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="px-5 py-2.5 rounded-xl font-medium text-sm shadow-sm bg-[#12151C] text-white hover:bg-[#2A2E38] cursor-pointer"
+          >
+            Edit Profile
+          </button>
         </div>
-
-
       </div>
 
+      <div className="px-6 mb-4">
+        <h2 className="heading text-xl font-bold text-[#12151C]">
+          {formData.fullName}
+        </h2>
+        <p className="text-sm text-[#6B7280]">@{formData.username}</p>
+      </div>
 
-      {imagePreviewOpen && displayAvatar && (
-  <div
-    onClick={() => setImagePreviewOpen(false)}
-    className="fixed inset-0 z-100 flex items-center justify-center bg-black/70  p-4"
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="relative max-w-2xl max-h-[85vh]"
-    >
-      <img
-        src={displayAvatar}
-        alt="Profile"
-        className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
-      />
+      <div className="px-6 pb-6 border-t border-[#E5E7EB] pt-4">
+        <h3 className="text-sm font-semibold text-[#12151C] mb-2">
+          Bio
+        </h3>
 
+        {formData.bio ? (
+          <p className="text-sm text-[#6B7280] leading-relaxed">
+            {formData.bio}
+          </p>
+        ) : (
+          <p className="text-sm italic text-[#9CA3AF]">
+            No bio added yet.
+          </p>
+        )}
+      </div>
+
+      <div className="px-6 pb-6 border-t border-[#E5E7EB] pt-4">
+        <h3 className="text-sm font-semibold text-[#12151C] mb-2">
+          Gender
+        </h3>
+
+        {formData.gender ? (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-600 capitalize">
+            {formData.gender}
+          </span>
+        ) : (
+          <p className="text-sm italic text-[#9CA3AF]">
+            No gender specified.
+          </p>
+        )}
+      </div>
+    </div>
+
+    <div className="rounded-3xl border border-[#E5E7EB] bg-white p-6 md:p-8 shadow-sm">
+      <div className="mb-6 pb-4 border-b border-[#E5E7EB] flex items-center justify-between">
+        <div>
+          <h2 className="heading text-lg md:text-xl font-bold text-[#12151C]">
+            Personal Information
+          </h2>
+
+          <p className="mt-1 text-sm text-[#6B7280]">
+            Your account information and profile details.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E5E7EB] transition hover:bg-[#F5F6F8]">
+          <div className="flex items-center gap-2 text-[#12151C] mb-1 font-bold">
+            <User className="h-4 w-4 text-teal-600" />
+            <span className="text-xs uppercase tracking-wider">
+              Full Name
+            </span>
+          </div>
+
+          <p className="text-[13px] font-normal text-[#6B7280] pl-6">
+            {formData.fullName || (
+              <span className="text-[#9CA3AF]">
+                Not provided
+              </span>
+            )}
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E5E7EB] transition hover:bg-[#F5F6F8]">
+          <div className="flex items-center gap-2 text-[#12151C] mb-1 font-bold">
+            <AtSign className="h-4 w-4 text-teal-600" />
+            <span className="text-xs uppercase tracking-wider">
+              Username
+            </span>
+          </div>
+
+          <p className="text-[13px] font-normal text-[#6B7280] pl-6">
+            {formData.username ? (
+              `${formData.username}`
+            ) : (
+              <span className="text-[#9CA3AF]">
+                Not provided
+              </span>
+            )}
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E5E7EB] transition hover:bg-[#F5F6F8]">
+          <div className="flex items-center gap-2 text-[#12151C] mb-1 font-bold">
+            <Mail className="h-4 w-4 text-teal-600" />
+            <span className="text-xs uppercase tracking-wider">
+              Email Address
+            </span>
+          </div>
+
+          <p className="text-[13px] font-normal text-[#6B7280] pl-6 break-all">
+            {formData.email || (
+              <span className="text-[#9CA3AF]">
+                Not provided
+              </span>
+            )}
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E5E7EB] transition hover:bg-[#F5F6F8]">
+          <div className="flex items-center gap-2 text-[#12151C] mb-1 font-bold">
+            <Calendar className="h-4 w-4 text-teal-600" />
+            <span className="text-xs uppercase tracking-wider">
+              Member Since
+            </span>
+          </div>
+
+          <p className="text-[13px] font-normal text-[#6B7280] pl-6">
+            {formattedDate || (
+              <span className="text-[#9CA3AF]">
+                Unknown
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div className="rounded-3xl border border-[#E5E7EB] bg-white p-6 md:p-8 shadow-sm">
+  <div className="mb-6 pb-4 border-b border-[#E5E7EB]">
+    <h2 className="heading text-lg md:text-xl font-bold text-[#12151C]">
+      Friends
+    </h2>
+
+    <p className="mt-1 text-sm text-[#6B7280]">
+      People you are connected with.
+    </p>
+  </div>
+
+  {friendsLoading ? (
+    <div className="flex items-center justify-center py-10">
+      <div className="w-6 h-6 border-2 border-teal-600/30 border-t-teal-600 rounded-full animate-spin" />
+    </div>
+  ) : friends.length === 0 ? (
+    <div className="flex flex-col items-center justify-center py-10 text-center">
+      <div className="w-14 h-14 rounded-full bg-[#F5F6F8] flex items-center justify-center">
+        <Users className="w-7 h-7 text-[#9CA3AF]" />
+      </div>
+
+      <h3 className="mt-4 text-sm font-semibold text-[#12151C]">
+        No friends yet
+      </h3>
+
+      <p className="mt-1 text-sm text-[#9CA3AF]">
+        You don't have any friends yet.
+      </p>
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {friends.map((friend) => (
+        <div
+          key={friend._id}
+          className="flex items-center gap-4 p-4 rounded-2xl bg-[#F8FAFC] border border-[#E5E7EB] hover:bg-[#F5F6F8] transition"
+        >
+          <div className="w-14 h-14 rounded-full bg-teal-100 overflow-hidden flex items-center justify-center shrink-0">
+            {friend.profileImageUrl ? (
+              <img
+                src={friend.profileImageUrl}
+                alt={friend.fullName}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-lg font-bold text-teal-600">
+                {friend.fullName
+                  ?.trim()
+                  .split(" ")
+                  .slice(0, 2)
+                  .map((name) => name[0]?.toUpperCase())
+                  .join("")}
+              </span>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-[#12151C] truncate">
+              {friend.fullName}
+            </h3>
+
+            <p className="text-sm text-[#6B7280] truncate">
+              @{friend.username}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  )} 
+</div>
+
+    <div className="w-full flex items-center justify-center">
       <button
-        onClick={() => setImagePreviewOpen(false)}
-        className="absolute -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white text-gray-400  shadow-lg hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+        type="button"
+        onClick={() => setIsLoggingOut(true)}
+        className="w-fit flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-[#12151C] bg-white border border-[#E5E7EB] hover:bg-[#F5F6F8] transition-colors cursor-pointer"
       >
-        <X size={18} strokeWidth={3}/>
+        <LogOut className="w-5 h-5" />
+        Logout
       </button>
     </div>
   </div>
-)}
 
-      {isLoggingOut && (
-  <div
-    onClick={() => setIsLoggingOut(false)}
-    className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-  >
+  {imagePreviewOpen && displayAvatar && (
     <div
-      onClick={(e) => e.stopPropagation()}
-      className="bg-white w-full max-w-sm rounded-2xl border border-slate-200 shadow-2xl p-6"
+      onClick={() => setImagePreviewOpen(false)}
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 p-4"
     >
-      <div className="flex items-center justify-center gap-3 mb-2">
-  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100">
-    <LogOut className="w-5 h-5 text-slate-600" />
-  </div>
-
-  <h3 className="text-lg font-bold text-slate-900">
-    Logout
-  </h3>
-</div>
-
-
-      <p className="mt-2 text-sm text-slate-500 leading-relaxed">
-        Are you sure you want to logout from your account?
-      </p>
-
-      <div className="flex justify-end gap-3 mt-6">
-        <button
-          type="button"
-          onClick={() => setIsLoggingOut(false)}
-          className="px-5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer"
-        >
-          Cancel
-        </button>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative max-w-2xl max-h-[85vh]"
+      >
+        <img
+          src={displayAvatar}
+          alt="Profile"
+          className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+        />
 
         <button
-          type="button"
-         onClick={handleLogout}
-          className="px-5 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 transition-colors cursor-pointer"
+          onClick={() => setImagePreviewOpen(false)}
+          className="absolute -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-white text-[#6B7280] shadow-lg hover:bg-[#F5F6F8] hover:text-[#12151C] cursor-pointer"
         >
-          Confirm Logout
+          <X size={18} strokeWidth={3} />
         </button>
       </div>
     </div>
-  </div>
-)}
+  )}
 
-      
-     {isEditing && (
-        <div
-          onClick={() => setIsEditing(false)}
-          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-        >
-          <form
-            onClick={(e) => e.stopPropagation()}
-            onSubmit={handleSubmit}
-            className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl border border-slate-200 rounded-2xl space-y-6 relative  no-scrollbar"
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 top-0 bg-white z-10">
-              <h3 className="text-lg font-bold text-slate-800">Edit Profile</h3>
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-500  cursor-pointer"
-              >
-                <X className="w-5 h-5" strokeWidth={3} />
-              </button>
-            </div>
+  {isLoggingOut && (
+    <div
+      onClick={() => setIsLoggingOut(false)}
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-sm rounded-2xl border border-[#E5E7EB] shadow-2xl p-6"
+      >
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#F5F6F8]">
+            <LogOut className="w-5 h-5 text-[#12151C]" />
+          </div>
 
-            
-            <div className="flex flex-col items-center gap-2">
-              <div className="relative group w-28 h-28 rounded-full overflow-hidden border-4 border-slate-200 shadow-md flex items-center justify-center">
-                {formData.avatar ? (
-                  <img
-                    src={formData.avatar}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-blue-600 flex items-center justify-center text-white text-3xl font-bold">
-                    {formData.fullName?.charAt(0).toUpperCase()}
-                  </div>
-                )}
-
-                <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100  cursor-pointer flex items-center justify-center">
-                  <Camera className="w-7 h-7 text-white" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageChange}
-                  />
-                </label>
-              </div>
-              <p className="text-xs text-slate-500">Click your photo to change it</p>
-            </div>
-
-            
-            <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <User className="w-4 h-4" />
-                Full Name
-              </label>
-              <input
-                type="text"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500"
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            
-            <div>
-              <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <FileText className="w-4 h-4" />
-                Bio
-              </label>
-              <textarea
-                rows={4}
-                maxLength={150}
-                name="bio"
-                value={formData.bio}
-                onChange={handleChange}
-                placeholder="Tell people something about yourself..."
-                className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none  focus:border-blue-500"
-              />
-              <div className="mt-1 text-right text-xs text-slate-400">
-                {formData.bio?.length || 0}/150
-              </div>
-            </div>
-
-            
-            <div>
-              <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <Users className="w-4 h-4" />
-                Gender
-              </label>
-              <div className="grid grid-cols-3 gap-3">
-                {["male", "female", "other"].map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, gender: g })}
-                    className={`rounded-xl border py-3 text-sm font-medium capitalize  cursor-pointer ${
-                      formData.gender === g
-                        ? "border-blue-600 bg-blue-50 text-blue-600"
-                        : "border-slate-300 hover:border-slate-400 text-slate-600"
-                    }`}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-           
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setIsEditing(false)}
-                className="px-5 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-100 cursor-pointer flex items-center gap-2"
-              >
-                <X size={16} strokeWidth={2} />
-
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-5 py-2.5 rounded-xl bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 cursor-pointer flex items-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+          <h3 className="heading text-lg font-bold text-[#12151C]">
+            Logout
+          </h3>
         </div>
-      )}
+
+        <p className="mt-2 text-sm text-[#6B7280] leading-relaxed">
+          Are you sure you want to logout from your account?
+        </p>
+
+        <div className="flex justify-end gap-3 mt-6">
+          <button
+            type="button"
+            onClick={() => setIsLoggingOut(false)}
+            className="px-5 py-2.5 rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#6B7280] hover:bg-[#F5F6F8] hover:text-[#12151C] transition-colors cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="px-5 py-2.5 rounded-xl bg-[#12151C] text-sm font-medium text-white hover:bg-[#2A2E38] transition-colors cursor-pointer"
+          >
+            Confirm Logout
+          </button>
+        </div>
+      </div>
     </div>
+  )}
+
+  {isEditing && (
+    <div
+      onClick={() => setIsEditing(false)}
+      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+    >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+        className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 md:p-8 shadow-2xl border border-[#E5E7EB] rounded-2xl space-y-6 relative no-scrollbar"
+      >
+        <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4 top-0 bg-white z-10">
+          <h3 className="heading text-lg font-bold text-[#12151C]">
+            Edit Profile
+          </h3>
+
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="p-1 hover:bg-[#F5F6F8] rounded-lg text-[#6B7280] cursor-pointer"
+          >
+            <X className="w-5 h-5" strokeWidth={3} />
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center gap-2">
+          <div className="relative group w-28 h-28 rounded-full overflow-hidden border-4 border-[#E5E7EB] shadow-md flex items-center justify-center">
+            {formData.avatar ? (
+              <img
+                src={formData.avatar}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-teal-600 flex items-center justify-center text-white text-3xl font-bold">
+                {formData.fullName?.charAt(0).toUpperCase()}
+              </div>
+            )}
+
+            <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer flex items-center justify-center">
+              <Camera className="w-7 h-7 text-white" />
+
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageChange}
+              />
+            </label>
+          </div>
+
+          <p className="text-xs text-[#6B7280]">
+            Click your photo to change it
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#12151C]">
+            <User className="w-4 h-4 text-teal-600" />
+            Full Name
+          </label>
+
+          <input
+            type="text"
+            name="fullName"
+            value={formData.fullName}
+            onChange={handleChange}
+            className="w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm outline-none transition focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+            placeholder="Enter your full name"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#12151C]">
+            <FileText className="w-4 h-4 text-teal-600" />
+            Bio
+          </label>
+
+          <textarea
+            rows={4}
+            maxLength={150}
+            name="bio"
+            value={formData.bio}
+            onChange={handleChange}
+            placeholder="Tell people something about yourself..."
+            className="w-full resize-none rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+          />
+
+          <div className="mt-1 text-right text-xs text-[#9CA3AF]">
+            {formData.bio?.length || 0}/150
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#12151C]">
+            <Users className="w-4 h-4 text-teal-600" />
+            Gender
+          </label>
+
+          <div className="grid grid-cols-3 gap-3">
+            {["male", "female", "other"].map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setFormData({ ...formData, gender: g })}
+                className={`rounded-xl border py-3 text-sm font-medium capitalize cursor-pointer ${
+                  formData.gender === g
+                    ? "border-teal-600 bg-teal-50 text-teal-600"
+                    : "border-[#E5E7EB] hover:border-[#CBD5E1] text-[#6B7280]"
+                }`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 border-t border-[#E5E7EB]">
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="px-5 py-2.5 rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#6B7280] hover:text-[#12151C] hover:bg-[#F5F6F8] cursor-pointer flex items-center gap-2"
+          >
+            <X size={16} strokeWidth={2} />
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-5 py-2.5 rounded-xl bg-[#12151C] text-sm font-medium text-white hover:bg-[#2A2E38] cursor-pointer flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  )}
+</div>
   );
 };
 

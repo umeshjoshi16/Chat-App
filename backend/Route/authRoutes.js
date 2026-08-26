@@ -31,6 +31,7 @@ router.get("/status/:userId", isAuthenticated, checkFriendship);
 router.get("/friends", isAuthenticated, getFriends);
 
 
+
 //notification
 router.get("/notifications", isAuthenticated, getNotifications);
 router.put( "/notifications/:notificationId/seen", isAuthenticated, markNotificationSeen);

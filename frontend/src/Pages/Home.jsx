@@ -1,6 +1,6 @@
 import React, { useState ,useEffect} from "react";
 import axios from "axios";
-import {Search,SearchX,Bell,BellOff,MessageSquare,Plus,Send,Menu,X,Phone,Video,Info,} from "lucide-react";
+import {Search,SearchX,Bell,Users,BellOff,MessageSquare,Plus,Send,Menu,X,Phone,Video,Info,} from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../Context/userContext";
@@ -67,6 +67,10 @@ const [notifications, setNotifications] = useState([]);
 const [unreadCount, setUnreadCount] = useState(0);
 const [selectedNotification, setSelectedNotification] = useState(null);
 
+const [newChatOpen, setNewChatOpen] = useState(false);
+const [friendSearch, setFriendSearch] = useState("");
+const [friends, setFriends] = useState([]);
+const [friendsLoading, setFriendsLoading] = useState(false);
 
 const navigate=useNavigate();
 
@@ -83,6 +87,46 @@ const navigate=useNavigate();
 const toggleNotification = () => {
   setNotificationOpen((prev) => !prev);
 };
+
+const handleNewChat = async () => {
+  setNewChatOpen(true);
+  setFriendsLoading(true);
+
+  try {
+    const { data } = await api.get("/auth/friends");
+
+    const sortedFriends = [...(data.friends || [])].sort((a, b) =>
+      (a.fullName || "").localeCompare(
+        b.fullName || "",
+        undefined,
+        { sensitivity: "base" }
+      )
+    );
+
+    setFriends(sortedFriends);
+  } catch (error) {
+    console.error("Failed to fetch friends:", error);
+
+    toast.error(
+      error.response?.data?.message || "Failed to load friends"
+    );
+
+    setFriends([]);
+  } finally {
+    setFriendsLoading(false);
+  }
+};
+
+const filteredFriends = friends.filter((friend) => {
+  const value = friendSearch.trim().toLowerCase();
+
+  if (!value) return true;
+
+  return (
+    friend.fullName?.toLowerCase().includes(value) ||
+    friend.username?.toLowerCase().includes(value)
+  );
+});
 
 const handleSendFriendRequest = async (recipientId) => {
   try {
@@ -364,7 +408,7 @@ useEffect(() => {
           </button>
           <div className="flex items-center gap-2">
            
-           <img src={Logo} alt="logo" className="h-12 cursor-pointer" />
+           <img src={Logo} alt="logo" className="md:h-12 h-8 cursor-pointer" />
             
           </div>
         </div>
@@ -699,6 +743,110 @@ useEffect(() => {
     </div>
   </div>
 )}
+
+{newChatOpen && (
+  <div
+    onClick={() => setNewChatOpen(false)}
+    className="fixed inset-0 z-100 bg-black/40 flex items-center justify-center p-4"
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="w-full max-w-lg min-h-[85vh] max-h-[85vh] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
+    >
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">
+            New Chat
+          </h2>
+
+          <p className="text-xs text-slate-500 mt-0.5">
+            Choose a friend to start chatting
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setNewChatOpen(false)}
+          className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="p-4 border-b border-slate-100">
+        <div className="relative">
+          <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+
+          <input
+            type="text"
+            value={friendSearch}
+            onChange={(e) => setFriendSearch(e.target.value)}
+            placeholder="Search friends..."
+            className="w-full bg-slate-100 text-slate-800 text-sm rounded-xl pl-9 pr-4 py-2.5 border border-transparent focus:bg-white focus:border-teal-500 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-2">
+        {friendsLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-5 h-5 border-2 border-slate-200 border-t-teal-600 rounded-full animate-spin" />
+          </div>
+        ) : filteredFriends.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+            <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center">
+              <Users className="w-7 h-7 text-slate-400" />
+            </div>
+
+            <h3 className="mt-4 text-sm font-semibold text-slate-700">
+              {friends.length === 0
+                ? "No friends yet"
+                : "No friends found"}
+            </h3>
+
+            <p className="mt-1 text-xs text-slate-500 max-w-xs">
+              {friends.length === 0
+                ? "Add some friends to start a conversation."
+                : "Try searching with a different name or username."}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {filteredFriends.map((friend) => (
+              <button
+                key={friend._id}
+                type="button"
+                onClick={() => {
+                  setSelectedChat(friend);
+                  setNewChatOpen(false);
+                  setFriendSearch("");
+                }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer text-left"
+              >
+                <SearchAvatar
+                  user={friend}
+                  getInitials={getInitials}
+                />
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 truncate">
+                    {friend.fullName}
+                  </p>
+
+                  <p className="text-xs text-slate-500 truncate">
+                    @{friend.username}
+                  </p>
+                </div>
+
+                <MessageSquare className="w-4 h-4 text-slate-400 shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
     
 
     
@@ -725,7 +873,7 @@ useEffect(() => {
               <input
                 type="text"
                 placeholder="Search Chats..."
-                className="w-full bg-slate-100 text-slate-800 text-sm rounded-xl pl-9 pr-4 py-2 border border-transparent focus:bg-white focus:border-blue-500 focus:outline-none transition-all"
+                className="w-full bg-slate-100 text-slate-800 text-sm rounded-xl pl-9 pr-4 py-2 border border-transparent focus:bg-white focus:border-teal-600 focus:outline-none transition-all"
               />
             </div>
           </div>
@@ -768,10 +916,16 @@ useEffect(() => {
 
           
           <div className="p-4 border-t border-slate-100">
-            <button className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]">
-              <Plus className="w-4 h-4" />
-              <span>New Chat</span>
-            </button>
+            <div className="p-4 border-t border-slate-100">
+  <button
+    type="button"
+    onClick={handleNewChat}
+    className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+  >
+    <Plus className="w-4 h-4" />
+    <span>New Chat</span>
+  </button>
+</div>
           </div>
         </aside>
 
@@ -880,7 +1034,7 @@ useEffect(() => {
               
                
               
-              <h3 className="text-xl font-bold text-slate-800 mb-1 flex items-center heading">Welcome to <img src={Logo} alt="logo" className="h-12 rounded-xl"/></h3>
+              <h3 className="text-xl font-bold text-gray-400 mb-1 flex flex-col flex-center items-center text-center heading">Welcome to <img src={Logo} alt="logo" className="h-15 rounded-xl"/></h3>
               <p className="text-sm sub-heading text-slate-500 max-w-md">
                 Select a conversation from the sidebar to start chatting or create a new chat.
               </p>

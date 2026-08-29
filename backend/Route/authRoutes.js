@@ -5,7 +5,7 @@ import { checkUsername, getMe, searchUsers, updateProfile } from "../Controller/
 import { getProfileImageUrl, getProfileUploadUrl } from "../Controller/generatePresignedUrl.js";
 import { sendFriendRequest,acceptFriendRequest,cancelFriendRequest,rejectFriendRequest,removeFriend,checkFriendship,getFriends} from "../Controller/friendshipController.js";
 import { getNotifications,markNotificationSeen} from "../Controller/notificationController.js";
-import { sendMessage,getMessages } from "../Controller/messageController.js";
+import { sendMessage,getMessages,getChats } from "../Controller/messageController.js";
 
 const router = express.Router();
 
@@ -39,7 +39,8 @@ router.put( "/notifications/:notificationId/seen", isAuthenticated, markNotifica
 
 
 //message
-router.post("/message/sent",isAuthenticated,sendMessage);
-router.get("/message/:userId",isAuthenticated,getMessages);
+router.post("/message/sent", isAuthenticated, sendMessage);
+router.get("/message/chats", isAuthenticated, getChats);
+router.get("/message/:userId", isAuthenticated, getMessages);
 
 export default router;

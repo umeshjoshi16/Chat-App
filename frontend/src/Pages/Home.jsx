@@ -75,6 +75,7 @@ const [friendsLoading, setFriendsLoading] = useState(false);
 
 const [messages, setMessages] = useState([]);
 const [sendingMessage, setSendingMessage] = useState(false);
+const [chats, setChats] = useState([]);
 
 const navigate=useNavigate();
 
@@ -380,11 +381,7 @@ useEffect(() => {
   return () => clearTimeout(timer);
 }, [search]);
   
-  const chats = [
-    { id: 1, name: "Alice Rai", status: "online", lastMessage: "Hey, are we still meeting?" },
-    { id: 2, name: "Bikash Chaudhary", status: "online", lastMessage: "Project files uploaded." },
-    { id: 3, name: "Chakra Bam", status: "away", lastMessage: "Check out this link!" },
-  ];
+ 
 
 
   const handleNotificationClick = async (notification) => {
@@ -413,7 +410,7 @@ useEffect(() => {
   }
 };
 
- const handleSendMessage = async (e) => {
+const handleSendMessage = async (e) => {
   e.preventDefault();
 
   const text = messageInput.trim();
@@ -435,13 +432,47 @@ useEffect(() => {
     });
 
     if (data.success) {
-   
-      setMessages((prev) => [
-        ...prev,
-        data.data,
-      ]);
+      const newMessage = data.data;
 
      
+      setMessages((prev) => [...prev, newMessage]);
+
+     
+      setChats((prevChats) => {
+        const existingChat = prevChats.find(
+          (chat) => chat.user?._id?.toString() === selectedChat._id?.toString()
+        );
+
+        if (existingChat) {
+       
+         const updatedChat = {
+  ...existingChat,
+  lastMessage: newMessage.message,
+  lastMessageAt: newMessage.createdAt,
+};
+
+          return [
+            updatedChat,
+            ...prevChats.filter(
+              (chat) =>
+                chat.user?._id?.toString() !==
+                selectedChat._id?.toString()
+            ),
+          ];
+        }
+
+     
+       return [
+  {
+    user: selectedChat,
+    lastMessage: newMessage.message,
+    lastMessageAt: newMessage.createdAt,
+    lastMessageType: newMessage.messageType,
+  },
+  ...prevChats,
+];
+      });
+
       setMessageInput("");
     }
   } catch (error) {
@@ -449,12 +480,30 @@ useEffect(() => {
 
     toast.error(
       error.response?.data?.message ||
-      "Failed to send message"
+        "Failed to send message"
     );
   } finally {
     setSendingMessage(false);
   }
 };
+
+const getChats = async () => {
+  try {
+    const { data } = await api.get("/auth/message/chats");
+   console.log('chats are',data);
+    if (data.success) {
+      setChats(data.chats);
+    }
+  } catch (error) {
+    console.error("Failed to get chats:", error);
+  }
+};
+
+useEffect(() => {
+  if (user?._id) {
+    getChats();
+  }
+}, [user?._id]);
 
 const getMessages = async (userId) => {
   try {
@@ -951,7 +1000,7 @@ useEffect(() => {
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/20 z-20 lg:hidden "
+            className="fixed inset-0 bg-black/50 z-20 lg:hidden "
           />
         )}
 
@@ -976,37 +1025,44 @@ useEffect(() => {
          
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
             {chats.map((chat) => (
-              <button
-                key={chat.id}
-                onClick={() => {
-                  setSelectedChat(chat);
-                  setSidebarOpen(false); 
-                }}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
-                  selectedChat?.id === chat.id
-                    ? "bg-blue-50 text-blue-900 font-medium"
-                    : "hover:bg-slate-50 text-slate-700"
-                }`}
-              >
-                <div className="relative shrink-0">
-                  <div className="w-11 h-11 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600">
-                    {chat.name[0]}
-                  </div>
-                  <span
-                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ring-2 ring-white ${
-                      chat.status === "online" ? "bg-emerald-500" : "bg-amber-400"
-                    }`}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline mb-0.5">
-                    <h3 className="text-sm font-semibold truncate text-slate-900">{chat.name}</h3>
-                    <span className="text-xs text-slate-400">12:45 PM</span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate">{chat.lastMessage}</p>
-                </div>
-              </button>
-            ))}
+  <button
+    key={chat.user._id}
+    onClick={() => {
+      setSelectedChat(chat.user);
+      setSidebarOpen(false);
+    }}
+    className="w-full flex items-center gap-3 p-3 rounded-xl text-left hover:bg-slate-50"
+  >
+    <SearchAvatar
+      user={chat.user}
+      getInitials={getInitials}
+    />
+
+    <div className="flex-1 min-w-0">
+      <div className="flex justify-between items-baseline">
+        <h3 className="text-sm font-semibold truncate">
+          {chat.user.fullName}
+        </h3>
+
+        <span className="text-xs text-slate-400">
+       {new Date(chat.lastMessageAt).toDateString() === new Date().toDateString()
+  ? new Date(chat.lastMessageAt).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  : new Date(chat.lastMessageAt).toLocaleDateString([], {
+      month: "short",
+      day: "numeric",
+    })}
+        </span>
+      </div>
+
+     <p className="text-xs text-slate-500 truncate">
+  {chat.lastMessage}
+</p>
+    </div>
+  </button>
+))}
           </div>
 
           

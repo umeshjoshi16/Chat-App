@@ -76,6 +76,7 @@ const [friendsLoading, setFriendsLoading] = useState(false);
 const [messages, setMessages] = useState([]);
 const [sendingMessage, setSendingMessage] = useState(false);
 const [chats, setChats] = useState([]);
+const [chatSearch, setChatSearch] = useState("");
 
 const navigate=useNavigate();
 
@@ -534,6 +535,17 @@ useEffect(() => {
 
   getMessages(selectedChat._id);
 }, [selectedChat?._id]);
+
+const filteredChats = chats.filter((chat) => {
+  const value = chatSearch.trim().toLowerCase();
+
+  if (!value) return true;
+
+  return (
+    chat.user?.fullName?.toLowerCase().includes(value) ||
+    chat.user?.username?.toLowerCase().includes(value)
+  );
+});
 
  
 
@@ -997,88 +1009,194 @@ useEffect(() => {
       <div className="flex flex-1 overflow-hidden relative">
         
       
-        {sidebarOpen && (
-          <div
-            onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-black/50 z-20 lg:hidden "
-          />
-        )}
+       
 
-    
-        <aside
-          className={`absolute lg:relative z-20 inset-y-0 left-0 w-80 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-          }`}
+    {sidebarOpen && (
+  <div
+    onClick={() => setSidebarOpen(false)}
+    className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+  />
+)}
+
+<aside
+  className={`absolute lg:relative z-20 inset-y-0 left-0 w-80 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out ${
+    sidebarOpen
+      ? "translate-x-0"
+      : "-translate-x-full lg:translate-x-0"
+  }`}
+>
+  <div className="p-4 border-b border-slate-100">
+    <div className="relative">
+      <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+
+      <input
+        type="text"
+        placeholder="Search Chats..."
+        value={chatSearch}
+        onChange={(e) => setChatSearch(e.target.value)}
+        className="w-full bg-slate-100 text-slate-800 text-sm rounded-xl pl-9 pr-4 py-2.5 border border-transparent focus:bg-white focus:border-teal-600 focus:outline-none transition-all"
+      />
+
+      {chatSearch.trim() && (
+        <button
+          type="button"
+          onClick={() => setChatSearch("")}
+          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
         >
-         
-          <div className="p-4 border-b border-slate-100">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search Chats..."
-                className="w-full bg-slate-100 text-slate-800 text-sm rounded-xl pl-9 pr-4 py-2 border border-transparent focus:bg-white focus:border-teal-600 focus:outline-none transition-all"
-              />
-            </div>
-          </div>
+          <X size={18} strokeWidth={3} />
+        </button>
+      )}
+    </div>
+  </div>
 
-         
-          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-            {chats.map((chat) => (
-  <button
-    key={chat.user._id}
-    onClick={() => {
-      setSelectedChat(chat.user);
-      setSidebarOpen(false);
-    }}
-    className="w-full flex items-center gap-3 p-3 rounded-xl text-left hover:bg-slate-50"
-  >
-    <SearchAvatar
-      user={chat.user}
-      getInitials={getInitials}
-    />
+  <div className="flex-1 overflow-y-auto px-3 py-2">
+    {chats.length === 0 ? (
+      <div className="h-full flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+          <MessageSquare className="w-7 h-7 text-slate-400" />
+        </div>
 
-    <div className="flex-1 min-w-0">
-      <div className="flex justify-between items-baseline">
-        <h3 className="text-sm font-semibold truncate">
-          {chat.user.fullName}
+        <h3 className="text-sm font-semibold text-slate-700">
+          No conversations yet
         </h3>
 
-        <span className="text-xs text-slate-400">
-       {new Date(chat.lastMessageAt).toDateString() === new Date().toDateString()
-  ? new Date(chat.lastMessageAt).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  : new Date(chat.lastMessageAt).toLocaleDateString([], {
-      month: "short",
-      day: "numeric",
-    })}
-        </span>
+        <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
+          Start a new conversation with one of your friends.
+        </p>
+
+        <button
+          type="button"
+          onClick={handleNewChat}
+          className="mt-4 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium rounded-lg transition-colors"
+        >
+          Start New Chat
+        </button>
       </div>
+    ) : filteredChats.length === 0 ? (
+      <div className="h-full flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+          <SearchX className="w-6 h-6 text-slate-400" />
+        </div>
 
-     <p className="text-xs text-slate-500 truncate">
-  {chat.lastMessage}
-</p>
-    </div>
-  </button>
-))}
-          </div>
+        <h3 className="text-sm font-semibold text-slate-700">
+          No chats found
+        </h3>
 
-          
-          <div className="p-4 border-t border-slate-100">
-            <div className="p-4 border-t border-slate-100">
-  <button
-    type="button"
-    onClick={handleNewChat}
-    className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
-  >
-    <Plus className="w-4 h-4" />
-    <span>New Chat</span>
-  </button>
-</div>
-          </div>
-        </aside>
+        <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
+          No conversation matches{" "}
+          <span className="font-medium text-slate-700">
+            "{chatSearch}"
+          </span>
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setChatSearch("")}
+          className="mt-4 text-[15px] font-medium text-teal-600 hover:text-teal-700 cursor-pointer"
+        >
+          Clear search
+        </button>
+      </div>
+    ) : (
+      <div className="space-y-1">
+        {filteredChats.map((chat) => {
+          const isSearching = chatSearch.trim().length > 0;
+
+          const isSelected =
+            selectedChat?._id?.toString() ===
+            chat.user?._id?.toString();
+
+          return (
+            <button
+              key={chat.user._id}
+              type="button"
+              onClick={() => {
+                setSelectedChat(chat.user);
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all border cursor-pointer ${
+                isSelected
+                  ? "bg-teal-50 border-teal-200"
+                  : isSearching
+                  ? "bg-white border-slate-200 hover:border-teal-200 hover:bg-teal-50/40"
+                  : "border-transparent hover:bg-slate-50"
+              }`}
+            >
+              <SearchAvatar
+                user={chat.user}
+                getInitials={getInitials}
+              />
+
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-baseline gap-2">
+                  <h3
+                    className={`text-sm font-semibold truncate ${
+                      isSelected
+                        ? "text-teal-700"
+                        : "text-slate-800"
+                    }`}
+                  >
+                    {chat.user.fullName}
+                  </h3>
+
+                  {chat.lastMessageAt && (
+                    <span className="text-[10px] text-slate-400 shrink-0">
+                      {new Date(
+                        chat.lastMessageAt
+                      ).toDateString() ===
+                      new Date().toDateString()
+                        ? new Date(
+                            chat.lastMessageAt
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : new Date(
+                            chat.lastMessageAt
+                          ).toLocaleDateString([], {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-slate-400 truncate">
+                  @{chat.user.username}
+                </p>
+
+                <p
+                  className={`text-xs truncate mt-0.5 ${
+                    isSelected
+                      ? "text-teal-600"
+                      : "text-slate-500"
+                  }`}
+                >
+                  {chat.lastMessage || "No messages yet"}
+                </p>
+              </div>
+
+              {isSelected && (
+                <div className="w-1 h-8 bg-teal-600 rounded-full shrink-0" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    )}
+  </div>
+
+  <div className="p-4 border-t border-slate-100">
+    <button
+      type="button"
+      onClick={handleNewChat}
+      className="w-full bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+    >
+      <Plus className="w-4 h-4" />
+      <span>New Chat</span>
+    </button>
+  </div>
+</aside>
 
         
         <main className="flex-1 flex flex-col bg-white overflow-hidden">

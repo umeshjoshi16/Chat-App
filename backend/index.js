@@ -30,7 +30,8 @@ app.use("/api/auth", authRoutes);
 
 const httpServer = createServer(app);
 
-initializeSocket(httpServer);
+const io = initializeSocket(httpServer);
+app.set("io", io);
 
 const PORT = process.env.PORT || 3000;
 

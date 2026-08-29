@@ -1,4 +1,4 @@
-import React, { useState ,useEffect} from "react";
+import React, { useState ,useEffect,useRef} from "react";
 import axios from "axios";
 import {Search,SearchX,Bell,Users,BellOff,MessageSquare,Plus,Send,Menu,X,Phone,Video,Info,} from "lucide-react";
 import { toast } from "sonner";
@@ -72,7 +72,19 @@ const [friendSearch, setFriendSearch] = useState("");
 const [friends, setFriends] = useState([]);
 const [friendsLoading, setFriendsLoading] = useState(false);
 
+
+const [messages, setMessages] = useState([]);
+const [sendingMessage, setSendingMessage] = useState(false);
+
 const navigate=useNavigate();
+
+
+const selectedChatRef = useRef(null);
+
+useEffect(() => {
+  selectedChatRef.current = selectedChat;
+}, [selectedChat]);
+
 
  const getInitials = (fullName) => {
   if (!fullName) return "";
@@ -271,10 +283,13 @@ useEffect(() => {
   }
 }, [user]);
 
+//socket
 useEffect(() => {
   if (!user?._id) return;
 
-  const socket = io("http://localhost:3000");
+  const socket = io("http://localhost:3000", {
+    withCredentials: true,
+  });
 
   socket.on("connect", () => {
     console.log("Socket connected:", socket.id);
@@ -283,7 +298,7 @@ useEffect(() => {
   });
 
   socket.on("friend_request", (notification) => {
-    console.log("New notification:", notification);
+    console.log("New friend request:", notification);
 
     setNotifications((prev) => [
       notification,
@@ -293,10 +308,24 @@ useEffect(() => {
     setUnreadCount((prev) => prev + 1);
   });
 
+ 
+  socket.on("new_message", (newMessage) => {
+ 
+
+  setMessages((prev) => {
+    
+
+    return [...prev, newMessage];
+  });
+});
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected");
+  });
+
   return () => {
     socket.disconnect();
   };
-}, [user]);
+}, [user?._id]);
 
 
 useEffect(() => {
@@ -384,12 +413,78 @@ useEffect(() => {
   }
 };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!messageInput.trim()) return;
-  
-    setMessageInput("");
-  };
+ const handleSendMessage = async (e) => {
+  e.preventDefault();
+
+  const text = messageInput.trim();
+
+  if (!text) return;
+
+  if (!selectedChat?._id) {
+    toast.error("Please select a user first");
+    return;
+  }
+
+  try {
+    setSendingMessage(true);
+
+    const { data } = await api.post("/auth/message/sent", {
+      receiverId: selectedChat._id,
+      message: text,
+      messageType: "text",
+    });
+
+    if (data.success) {
+   
+      setMessages((prev) => [
+        ...prev,
+        data.data,
+      ]);
+
+     
+      setMessageInput("");
+    }
+  } catch (error) {
+    console.error("Send message error:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+      "Failed to send message"
+    );
+  } finally {
+    setSendingMessage(false);
+  }
+};
+
+const getMessages = async (userId) => {
+  try {
+    const { data } = await api.get(
+      `/auth/message/${userId}`
+    );
+
+    if (data.success) {
+      setMessages(data.messages || []);
+    }
+  } catch (error) {
+    console.error("Failed to fetch messages:", error);
+
+    toast.error(
+      error.response?.data?.message ||
+      "Failed to load messages"
+    );
+
+    setMessages([]);
+  }
+};
+
+useEffect(() => {
+  if (!selectedChat?._id) {
+    setMessages([]);
+    return;
+  }
+
+  getMessages(selectedChat._id);
+}, [selectedChat?._id]);
 
  
 
@@ -426,7 +521,7 @@ useEffect(() => {
   />
 
   {searchOpen && (
-    <div className="absolute top-12 left-0 w-full bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto">
+    <div className="absolute top-12 left-0 w-full bg-white rounded-xl shadow-xl border border-gray-200 z-50 max-h-80 overflow-y-auto no-scrollbar">
       {searchLoading ? (
         <div className="p-4 text-center text-gray-500">
           Searching...
@@ -457,7 +552,7 @@ useEffect(() => {
       setSearch("");
       setSearchOpen(false);
     }}
-    className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 transition cursor-pointer"
+    className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 transition cursor-pointer "
   >
     <SearchAvatar
       user={u}
@@ -856,7 +951,7 @@ useEffect(() => {
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/20 z-20 lg:hidden backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-900/20 z-20 lg:hidden "
           />
         )}
 
@@ -981,28 +1076,73 @@ useEffect(() => {
 
 
    
-    <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+   <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
 
-      <div className="h-full flex flex-col items-center justify-center text-center">
+  {messages.length === 0 ? (
+    <div className="h-full flex flex-col items-center justify-center text-center">
 
-       
-        <SearchAvatar
-          user={selectedChat}
-          getInitials={getInitials}
-        />
+      <SearchAvatar
+        user={selectedChat}
+        getInitials={getInitials}
+      />
 
-       
-        <h3 className="mt-4 text-sm font-semibold text-slate-700">
-          No messages
-        </h3>
+      <h3 className="mt-4 text-sm font-semibold text-slate-700">
+        No messages
+      </h3>
 
-        <p className="mt-1 text-xs text-slate-500 max-w-xs">
-          Start a conversation with {selectedChat.fullName}
-        </p>
-
-      </div>
+      <p className="mt-1 text-xs text-slate-500 max-w-xs">
+        Start a conversation with {selectedChat.fullName}
+      </p>
 
     </div>
+  ) : (
+    <div className="space-y-2">
+
+      {messages.map((msg) => {
+
+        const isMine =
+          msg.sender?._id?.toString() === user?._id?.toString();
+
+        return (
+          <div
+            key={msg._id}
+            className={`flex ${
+              isMine
+                ? "justify-end"
+                : "justify-start"
+            }`}
+          >
+<div
+  className={`max-w-[70%] px-4 py-1 text-sm ${
+    isMine
+      ? "bg-teal-600 text-white rounded-t-2xl rounded-bl-2xl rounded-br-0 shadow-sm"
+      : "bg-white text-slate-800 rounded-t-2xl rounded-br-2xl rounded-bl-0 shadow-[0_0_0_1px_rgba(15,23,42,0.06),0_1px_2px_rgba(15,23,42,0.04)]"
+  }`}
+>
+  <p className="wrap-break-word leading-relaxed">
+    {msg.message}
+  </p>
+
+  <p
+    className={`text-[10px] mt-1 text-right ${
+      isMine ? "text-teal-100/80" : "text-slate-400"
+    }`}
+  >
+    {new Date(msg.createdAt).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}
+  </p>
+</div>
+
+          </div>
+        );
+      })}
+
+    </div>
+  )}
+
+</div>
 
 
     
@@ -1020,11 +1160,12 @@ useEffect(() => {
       />
 
       <button
-        type="submit"
-        className="bg-teal-600 hover:bg-teal-700 text-white p-3 rounded-xl flex items-center justify-center transition-all shadow-sm cursor-pointer"
-      >
-        <Send className="w-4 h-4" />
-      </button>
+  type="submit"
+  disabled={sendingMessage || !messageInput.trim()}
+  className="bg-teal-600 hover:bg-teal-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white p-3 rounded-xl flex items-center justify-center transition-all shadow-sm cursor-pointer"
+>
+  <Send className="w-4 h-4" />
+</button>
 
     </form>
   </>

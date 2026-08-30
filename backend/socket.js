@@ -10,19 +10,55 @@ export const initializeSocket = (httpServer) => {
     },
   });
 
-  io.on("connection", (socket) => {
-    console.log("Socket connected:", socket.id);
+  // io.on("connection", (socket) => {
+  //   console.log("Socket connected:", socket.id);
 
-    socket.on("register", (userId) => {
-      socket.join(`user:${userId}`);
+  //   socket.on("register", (userId) => {
+  //     socket.join(`user:${userId}`);
 
-      console.log(`User ${userId} joined socket room`);
-    });
+  //     console.log(`User ${userId} joined socket room`);
+  //   });
 
-    socket.on("disconnect", () => {
-      console.log("Socket disconnected:", socket.id);
+  //    socket.on("typing", ({ senderId, receiverId }) => {
+  //   io.to(receiverId).emit("user_typing", {
+  //     senderId,
+  //   });
+  // });
+
+  // socket.on("stop_typing", ({ senderId, receiverId }) => {
+  //   io.to(receiverId).emit("user_stop_typing", {
+  //     senderId,
+  //   });
+  // });
+
+  //   socket.on("disconnect", () => {
+  //     console.log("Socket disconnected:", socket.id);
+  //   });
+  // });
+
+io.on("connection", (socket) => {
+
+  socket.on("register", (userId) => {
+    socket.join(`user:${userId}`);
+
+    console.log(
+      `User ${userId} joined room ${userId}`
+    );
+  });
+
+ socket.on("typing", ({ senderId, receiverId }) => {
+    socket.to(`user:${receiverId}`).emit("user_typing", {
+      senderId,
     });
   });
+
+  socket.on("stop_typing", ({ senderId, receiverId }) => {
+    socket.to(`user:${receiverId}`).emit("user_stop_typing", {
+      senderId,
+    });
+  });
+
+});
 
   return io;
 };

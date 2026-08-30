@@ -78,6 +78,20 @@ const [sendingMessage, setSendingMessage] = useState(false);
 const [chats, setChats] = useState([]);
 const [chatSearch, setChatSearch] = useState("");
 
+const [typingUsers, setTypingUsers] = useState({});
+const typingTimeoutRef = useRef(null);
+const socketRef = useRef(null);
+const messagesEndRef = useRef(null);
+
+const scrollToBottom = () => {
+  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+};
+
+useEffect(() => {
+  scrollToBottom();
+}, [messages]);
+
+
 const navigate=useNavigate();
 
 
@@ -286,12 +300,15 @@ useEffect(() => {
 }, [user]);
 
 //socket
+
 useEffect(() => {
   if (!user?._id) return;
 
   const socket = io("http://localhost:3000", {
     withCredentials: true,
   });
+
+  socketRef.current = socket;
 
   socket.on("connect", () => {
     console.log("Socket connected:", socket.id);
@@ -300,8 +317,6 @@ useEffect(() => {
   });
 
   socket.on("friend_request", (notification) => {
-    console.log("New friend request:", notification);
-
     setNotifications((prev) => [
       notification,
       ...prev,
@@ -310,25 +325,40 @@ useEffect(() => {
     setUnreadCount((prev) => prev + 1);
   });
 
- 
   socket.on("new_message", (newMessage) => {
- 
+    const currentChat = selectedChatRef.current;
 
-  setMessages((prev) => {
-    
-
-    return [...prev, newMessage];
+    if (
+      currentChat?._id?.toString() ===
+      newMessage.sender?._id?.toString()
+    ) {
+      setMessages((prev) => [...prev, newMessage]);
+    }
   });
-});
+
+  socket.on("user_typing", ({ senderId }) => {
+    setTypingUsers((prev) => ({
+      ...prev,
+      [senderId]: true,
+    }));
+  });
+
+  socket.on("user_stop_typing", ({ senderId }) => {
+    setTypingUsers((prev) => ({
+      ...prev,
+      [senderId]: false,
+    }));
+  });
+
   socket.on("disconnect", () => {
     console.log("Socket disconnected");
   });
 
   return () => {
     socket.disconnect();
+    socketRef.current = null;
   };
 }, [user?._id]);
-
 
 useEffect(() => {
   if (!search.trim()) {
@@ -1312,9 +1342,19 @@ const filteredChats = chats.filter((chat) => {
           </div>
         );
       })}
-
+<div ref={messagesEndRef} />
     </div>
   )}
+
+ {typingUsers[selectedChat?._id] && (
+  <div className="flex items-center gap-2 px-2 py-2">
+    <div className="flex items-center gap-1 bg-white px-3 py-3 rounded-2xl shadow-sm">
+      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" />
+      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:150ms]" />
+      <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-delay:300ms]" />
+    </div>
+  </div>
+)}
 
 </div>
 
@@ -1325,14 +1365,47 @@ const filteredChats = chats.filter((chat) => {
       className="p-4 bg-white border-t border-slate-200 shrink-0 flex items-center gap-3"
     >
 
-      <input
-        type="text"
-        value={messageInput}
-        onChange={(e) => setMessageInput(e.target.value)}
-        placeholder={`Message ${selectedChat.fullName}...`}
-        className="flex-1 bg-slate-100 text-slate-800 text-sm rounded-xl px-4 py-3 border border-transparent focus:bg-white focus:border-teal-500 focus:outline-none transition-all"
-      />
 
+   <input
+  type="text"
+  value={messageInput}
+  onChange={(e) => {
+    const value = e.target.value;
+
+    setMessageInput(value);
+
+    if (!selectedChat?._id || !user?._id || !socketRef.current) {
+      return;
+    }
+
+    const socket = socketRef.current;
+
+    if (value.trim()) {
+      socket.emit("typing", {
+        senderId: user._id,
+        receiverId: selectedChat._id,
+      });
+
+      clearTimeout(typingTimeoutRef.current);
+
+      typingTimeoutRef.current = setTimeout(() => {
+        socket.emit("stop_typing", {
+          senderId: user._id,
+          receiverId: selectedChat._id,
+        });
+      }, 1000);
+    } else {
+      clearTimeout(typingTimeoutRef.current);
+
+      socket.emit("stop_typing", {
+        senderId: user._id,
+        receiverId: selectedChat._id,
+      });
+    }
+  }}
+  placeholder={`Message ${selectedChat.fullName}...`}
+  className="flex-1 bg-slate-100 text-slate-800 text-sm rounded-xl px-4 py-3 border border-transparent focus:bg-white focus:border-teal-500 focus:outline-none transition-all"
+/>
       <button
   type="submit"
   disabled={sendingMessage || !messageInput.trim()}

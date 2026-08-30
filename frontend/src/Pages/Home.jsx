@@ -79,6 +79,8 @@ const [chats, setChats] = useState([]);
 const [chatSearch, setChatSearch] = useState("");
 
 const [typingUsers, setTypingUsers] = useState({});
+const [onlineUsers, setOnlineUsers] = useState([]);
+
 const typingTimeoutRef = useRef(null);
 const socketRef = useRef(null);
 const messagesEndRef = useRef(null);
@@ -350,6 +352,10 @@ useEffect(() => {
     }));
   });
 
+  socket.on("get_online_users", (users) => {
+  setOnlineUsers(users);
+});
+
   socket.on("disconnect", () => {
     console.log("Socket disconnected");
   });
@@ -359,6 +365,8 @@ useEffect(() => {
     socketRef.current = null;
   };
 }, [user?._id]);
+
+const isOnline = onlineUsers.includes(selectedChat?._id?.toString());
 
 useEffect(() => {
   if (!search.trim()) {
@@ -1239,10 +1247,14 @@ const filteredChats = chats.filter((chat) => {
       <div className="flex items-center gap-3 min-w-0">
 
         
-        <SearchAvatar
-          user={selectedChat}
-          getInitials={getInitials}
-        />
+        <div className="relative">
+  <SearchAvatar user={selectedChat} getInitials={getInitials} />
+  <span 
+    className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${
+      isOnline ? "bg-emerald-500" : "bg-slate-300"
+    }`} 
+  />
+</div>
 
        
         <div className="min-w-0">
@@ -1256,11 +1268,9 @@ const filteredChats = chats.filter((chat) => {
           </p>
 
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+           
 
-            <span className="text-[11px] text-emerald-600 font-medium">
-              online
-            </span>
+            
           </div>
 
         </div>

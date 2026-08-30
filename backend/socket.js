@@ -10,32 +10,7 @@ export const initializeSocket = (httpServer) => {
     },
   });
 
-  // io.on("connection", (socket) => {
-  //   console.log("Socket connected:", socket.id);
-
-  //   socket.on("register", (userId) => {
-  //     socket.join(`user:${userId}`);
-
-  //     console.log(`User ${userId} joined socket room`);
-  //   });
-
-  //    socket.on("typing", ({ senderId, receiverId }) => {
-  //   io.to(receiverId).emit("user_typing", {
-  //     senderId,
-  //   });
-  // });
-
-  // socket.on("stop_typing", ({ senderId, receiverId }) => {
-  //   io.to(receiverId).emit("user_stop_typing", {
-  //     senderId,
-  //   });
-  // });
-
-  //   socket.on("disconnect", () => {
-  //     console.log("Socket disconnected:", socket.id);
-  //   });
-  // });
-
+ const onlineUsers = new Map();
 io.on("connection", (socket) => {
 
   socket.on("register", (userId) => {
@@ -44,6 +19,9 @@ io.on("connection", (socket) => {
     console.log(
       `User ${userId} joined room ${userId}`
     );
+    onlineUsers.set(userId.toString(), socket.id);
+
+    io.emit("get_online_users", Array.from(onlineUsers.keys()));
   });
 
  socket.on("typing", ({ senderId, receiverId }) => {
@@ -56,6 +34,17 @@ io.on("connection", (socket) => {
     socket.to(`user:${receiverId}`).emit("user_stop_typing", {
       senderId,
     });
+  });
+
+   socket.on("disconnect", () => {
+    console.log("Socket disconnected:", socket.id);
+    for (let [userId, socketId] of onlineUsers.entries()) {
+      if (socketId === socket.id) {
+        onlineUsers.delete(userId);
+        break;
+      }
+    }
+    io.emit("get_online_users", Array.from(onlineUsers.keys()));
   });
 
 });
